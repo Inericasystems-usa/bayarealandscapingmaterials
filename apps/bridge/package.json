@@ -1,0 +1,13 @@
+{
+  "name": "balm-hardware-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local hardware bridge — thermal receipt printing + cash-drawer kick for the counter PC.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-thermal-printer": "^4.4.4"
+  }
+}

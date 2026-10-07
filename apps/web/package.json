@@ -1,0 +1,50 @@
+{
+  "name": "@balm/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "clean": "rimraf .next .turbo",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@balm/lib-domain": "workspace:*",
+    "@balm/shared-types": "workspace:*",
+    "@balm/ui": "workspace:*",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.40.0",
+    "jsbarcode": "^3.12.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@balm/config-typescript": "workspace:*",
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@types/google.maps": "^3.65.5",
+    "@types/jsbarcode": "^3.11.4",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.15.0",
+    "eslint-config-next": "^15.0.3",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
+  }
+}

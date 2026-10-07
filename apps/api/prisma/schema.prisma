@@ -1,0 +1,623 @@
+// BALM data model — Prisma schema
+//
+// Source of truth: docs/architecture/system-design.md §7
+//
+// Conventions:
+//   • IDs: BigInt PK + ULID public_id for URLs
+//   • Money: always BigInt cents
+//   • snake_case at the DB level via @map; PascalCase Prisma models
+//   • Every mutable table has @@map and ON DELETE rules are explicit
+//
+// First-time setup:
+//   1. Set DATABASE_URL in apps/api/.env.local
+//   2. Run: pnpm --filter @balm/api exec prisma migrate dev --name init
+//   3. Run: pnpm --filter @balm/api exec prisma generate
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// IDENTITY & ACCESS CONTROL
+// ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  owner
+  manager
+  cashier
+  driver
+  customer
+}
+
+model User {
+  id              BigInt    @id @default(autoincrement())
+  publicId        String    @unique @default(cuid()) @map("public_id")
+  email           String    @unique
+  emailLower      String    @unique @map("email_lower")
+  passwordHash    String?   @map("password_hash")
+  fullName        String    @map("full_name")
+  role            UserRole  @default(cashier)
+  phone           String?
+  // Driver compensation (Q10) — only visible to roles with users:view_compensation perm
+  driverWageCentsPerHour BigInt? @map("driver_wage_cents_per_hour")
+  isActive        Boolean   @default(true) @map("is_active")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  sessions        Session[]
+  ordersAsCashier Order[]   @relation("cashier")
+  deliveries      Delivery[]
+  auditEvents     AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id               BigInt   @id @default(autoincrement())
+  userId           BigInt   @map("user_id")
+  refreshTokenHash String   @unique @map("refresh_token_hash")
+  expiresAt        DateTime @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  ip               String?
+  userAgent        String?  @map("user_agent")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CATALOG
+// ─────────────────────────────────────────────────────────────────
+
+model Category {
+  id          BigInt    @id @default(autoincrement())
+  publicId    String    @unique @default(cuid()) @map("public_id")
+  name        String    @unique
+  description String?
+  skuPrefix   String?   @map("sku_prefix")
+  sortOrder   Int       @default(0) @map("sort_order")
+  parentId    BigInt?   @map("parent_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Uom {
+  id           BigInt    @id @default(autoincrement())
+  name         String    @unique
+  shortLabel   String    @map("short_label")
+  deliverable  Boolean   @default(true)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  products     Product[]
+  orderLines   OrderLine[]
+
+  @@map("uoms")
+}
+
+enum PricingTierCode {
+  retail
+  contractor
+  wholesale
+  custom
+}
+
+model PricingTier {
+  id        BigInt   @id @default(autoincrement())
+  code      PricingTierCode @unique
+  label     String
+  sortOrder Int      @default(0) @map("sort_order")
+
+  productPrices  ProductPriceTier[]
+  customers      Customer[]
+
+  @@map("pricing_tiers")
+}
+
+model Product {
+  id                   BigInt    @id @default(autoincrement())
+  publicId             String    @unique @default(cuid()) @map("public_id")
+  sku                  String    @unique
+  barcode              String?   @unique
+  name                 String
+  description          String?
+  internalNotes        String?   @map("internal_notes")
+
+  categoryId           BigInt    @map("category_id")
+  uomId                BigInt    @map("uom_id")
+  uomLabel             String?   @map("uom_label")
+
+  costCents            BigInt    @default(0) @map("cost_cents")
+  retailCents          BigInt    @map("retail_cents")
+  minChargeCents       BigInt    @default(0) @map("min_charge_cents")
+
+  fullLoadQty          Decimal?  @map("full_load_qty") @db.Decimal(12, 3)
+  fullLoadCents        BigInt?   @map("full_load_cents")
+  fullLoadStrict       Boolean   @default(false) @map("full_load_strict")
+
+  weightPerUnitLbs     Decimal?  @map("weight_per_unit_lbs") @db.Decimal(12, 3)
+  volumePerUnitCuyd    Decimal?  @map("volume_per_unit_cuyd") @db.Decimal(12, 3)
+
+  taxable              Boolean   @default(true)
+  trackInventory       Boolean   @default(true) @map("track_inventory")
+  deliverable          Boolean   @default(false)
+  shippable            Boolean   @default(false)
+  isActive             Boolean   @default(true) @map("is_active")
+
+  lowStockAlert        Decimal?  @map("low_stock_alert") @db.Decimal(12, 3)
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  category             Category  @relation(fields: [categoryId], references: [id])
+  uom                  Uom       @relation(fields: [uomId], references: [id])
+  priceTiers           ProductPriceTier[]
+  altUoms              ProductAltUom[]
+  images               ProductImage[]
+  stockMovements       StockMovement[]
+  orderLines           OrderLine[]
+
+  @@index([categoryId])
+  @@index([isActive, deletedAt])
+  @@map("products")
+}
+
+model ProductPriceTier {
+  productId   BigInt @map("product_id")
+  tierId      BigInt @map("tier_id")
+  priceCents  BigInt @map("price_cents")
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tier        PricingTier @relation(fields: [tierId], references: [id])
+
+  @@id([productId, tierId])
+  @@map("product_price_tiers")
+}
+
+model ProductAltUom {
+  id                 BigInt   @id @default(autoincrement())
+  productId          BigInt   @map("product_id")
+  label              String
+  baseQtyPerAlt      Decimal  @map("base_qty_per_alt") @db.Decimal(12, 4)
+  priceOverrideCents BigInt?  @map("price_override_cents")
+  displayOrder       Int      @default(0) @map("display_order")
+
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderLines         OrderLine[]
+
+  @@index([productId])
+  @@map("product_alt_uoms")
+}
+
+model ProductImage {
+  id         BigInt   @id @default(autoincrement())
+  productId  BigInt   @map("product_id")
+  url        String
+  alt        String?
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  sortOrder  Int      @default(0) @map("sort_order")
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────────────────────────
+
+model InventoryLocation {
+  id        BigInt @id @default(autoincrement())
+  code      String @unique
+  name      String
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+
+  stockMovements StockMovement[]
+  orders         Order[]
+
+  @@map("inventory_locations")
+}
+
+enum StockMovementReason {
+  sale
+  return_to_stock
+  adjustment
+  receive
+  transfer_in
+  transfer_out
+  waste
+  migration_seed
+}
+
+model StockMovement {
+  id            BigInt    @id @default(autoincrement())
+  productId     BigInt    @map("product_id")
+  locationId    BigInt    @map("location_id")
+  qtyDelta      Decimal   @map("qty_delta") @db.Decimal(14, 4)
+  reason        StockMovementReason
+  referenceType String?   @map("reference_type")
+  referenceId   BigInt?   @map("reference_id")
+  performedById BigInt?   @map("performed_by_id")
+  notes         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  product       Product            @relation(fields: [productId], references: [id])
+  location      InventoryLocation  @relation(fields: [locationId], references: [id])
+
+  @@index([productId, locationId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CUSTOMERS (CRM)
+// ─────────────────────────────────────────────────────────────────
+
+enum CustomerType {
+  retail
+  contractor
+  wholesale
+}
+
+model Customer {
+  id               BigInt    @id @default(autoincrement())
+  publicId         String    @unique @default(cuid()) @map("public_id")
+  customerNumber   String    @unique @map("customer_number") // e.g. CUST-0001 (preserved from Flint per Q7)
+  name             String
+  company          String?
+  customerType     CustomerType @default(retail) @map("customer_type")
+  defaultTierId    BigInt?   @map("default_tier_id")
+  phone            String?
+  phoneNormalized  String?   @map("phone_normalized") // digits only, for RC matching
+  email            String?
+  emailLower       String?   @map("email_lower")
+  balanceCents     BigInt    @default(0) @map("balance_cents")
+  creditLimitCents BigInt    @default(0) @map("credit_limit_cents")
+  storeCreditCents BigInt    @default(0) @map("store_credit_cents")
+  paymentTermsDays Int       @default(0) @map("payment_terms_days") // 0=COD, 15=Net15, 30=Net30
+  notes            String?
+  portalEnabled    Boolean   @default(false) @map("portal_enabled")
+  portalInvitedAt  DateTime? @map("portal_invited_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  defaultTier      PricingTier?      @relation(fields: [defaultTierId], references: [id])
+  addresses        CustomerAddress[]
+  orders           Order[]
+
+  @@unique([phoneNormalized], map: "uniq_customers_phone_norm")
+  @@unique([emailLower],      map: "uniq_customers_email_lower")
+  @@index([customerType, deletedAt])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id                  BigInt   @id @default(autoincrement())
+  customerId          BigInt   @map("customer_id")
+  label               String?
+  isBilling           Boolean  @default(false) @map("is_billing")
+  isDefaultDelivery   Boolean  @default(false) @map("is_default_delivery")
+  street1             String
+  street2             String?
+  city                String
+  county              String?
+  state               String
+  postalCode          String   @map("postal_code")
+  country             String   @default("US")
+  latitude            Decimal? @db.Decimal(10, 7)
+  longitude           Decimal? @db.Decimal(10, 7)
+  deliveryDistanceMi  Decimal? @map("delivery_distance_mi") @db.Decimal(8, 2)
+  notes               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deliveries          Delivery[]
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SALES (POS)
+// ─────────────────────────────────────────────────────────────────
+
+enum OrderType {
+  in_store
+  delivery
+  will_call
+  ship
+  quote
+}
+
+enum OrderStatus {
+  draft
+  scheduled
+  complete
+  dispatched
+  delivered
+  void
+}
+
+model Order {
+  id              BigInt    @id @default(autoincrement())
+  publicId        String    @unique @default(cuid()) @map("public_id")
+  orderNumber     String    @unique @map("order_number")        // ORD-YYYYMMDD-NNNN
+  customerId      BigInt?   @map("customer_id")                 // null = walk-in
+  cashierId       BigInt    @map("cashier_id")
+  locationId      BigInt    @map("location_id")
+  type            OrderType
+  status          OrderStatus @default(draft)
+  subtotalCents   BigInt    @default(0) @map("subtotal_cents")
+  discountCents   BigInt    @default(0) @map("discount_cents")
+  taxCents        BigInt    @default(0) @map("tax_cents")
+  feesCents       BigInt    @default(0) @map("fees_cents")
+  totalCents      BigInt    @default(0) @map("total_cents")     // computed in app layer
+  paidCents       BigInt    @default(0) @map("paid_cents")
+  balanceCents    BigInt    @default(0) @map("balance_cents")   // computed
+  customerNotes   String?   @map("customer_notes")
+  internalNotes   String?   @map("internal_notes")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  completedAt     DateTime? @map("completed_at")
+  voidedAt        DateTime? @map("voided_at")
+  voidedById      BigInt?   @map("voided_by_user_id")
+  voidReason      String?   @map("void_reason")
+
+  customer        Customer?         @relation(fields: [customerId], references: [id])
+  cashier         User              @relation("cashier", fields: [cashierId], references: [id])
+  location        InventoryLocation @relation(fields: [locationId], references: [id])
+  lines           OrderLine[]
+  payments        Payment[]
+  delivery        Delivery?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderLine {
+  id                BigInt   @id @default(autoincrement())
+  orderId           BigInt   @map("order_id")
+  position          Int
+  productId         BigInt?  @map("product_id")     // null for custom $ lines
+  uomId             BigInt?  @map("uom_id")
+  altUomId          BigInt?  @map("alt_uom_id")
+  description       String                          // snapshot
+  qty               Decimal  @db.Decimal(12, 3)
+  unitPriceCents    BigInt   @map("unit_price_cents") // snapshot
+  lineSubtotalCents BigInt   @map("line_subtotal_cents")
+  discountCents     BigInt   @default(0) @map("discount_cents")
+  taxCents          BigInt   @default(0) @map("tax_cents")
+  isTaxable         Boolean  @default(true) @map("is_taxable")
+  isCustom          Boolean  @default(false) @map("is_custom")
+  notes             String?
+
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product?       @relation(fields: [productId], references: [id])
+  uom               Uom?           @relation(fields: [uomId], references: [id])
+  altUom            ProductAltUom? @relation(fields: [altUomId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_lines")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────────────────────────
+
+enum PaymentMethod {
+  cash
+  card_present
+  card_keyed
+  check
+  store_credit
+  terms
+  other
+}
+
+model Payment {
+  id                  BigInt   @id @default(autoincrement())
+  orderId             BigInt   @map("order_id")
+  method              PaymentMethod
+  amountCents         BigInt   @map("amount_cents")    // negative for refund
+  reference           String?                          // last4, check #, txn ID
+  provider            String?                          // 'stripe_terminal' | 'square' | 'manual'
+  providerPayload     Json?    @map("provider_payload")
+  refundOfPaymentId   BigInt?  @map("refund_of_payment_id")
+  performedById       BigInt   @map("performed_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  order               Order    @relation(fields: [orderId], references: [id])
+  refundOf            Payment? @relation("PaymentRefund", fields: [refundOfPaymentId], references: [id])
+  refunds             Payment[] @relation("PaymentRefund")
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DELIVERIES
+// ─────────────────────────────────────────────────────────────────
+
+enum DeliveryStatus {
+  unscheduled
+  scheduled
+  dispatched
+  arrived
+  delivered
+  cancelled
+}
+
+model Truck {
+  id          BigInt @id @default(autoincrement())
+  name        String
+  fuelType    String? @map("fuel_type")               // gas | diesel
+  mpg         Decimal? @db.Decimal(6, 2)
+  capacityCuyd Decimal? @map("capacity_cuyd") @db.Decimal(8, 2)
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  deliveries  Delivery[]
+
+  @@map("trucks")
+}
+
+model Delivery {
+  id                BigInt   @id @default(autoincrement())
+  publicId          String   @unique @default(cuid()) @map("public_id")
+  orderId           BigInt   @unique @map("order_id")
+  deliveryAddressId BigInt   @map("delivery_address_id")
+  truckId           BigInt?  @map("truck_id")
+  driverId          BigInt?  @map("driver_id")
+  status            DeliveryStatus @default(unscheduled)
+  scheduledDate     DateTime? @map("scheduled_date") @db.Date
+  windowStart       DateTime? @map("window_start") @db.Time
+  windowEnd         DateTime? @map("window_end") @db.Time
+  distanceMi        Decimal?  @map("distance_mi") @db.Decimal(8, 2)
+  feeCents          BigInt    @default(0) @map("fee_cents")
+  deliveryCogsCents BigInt?   @map("delivery_cogs_cents")  // Q10 — computed when delivered
+  driverNotes       String?   @map("driver_notes")
+  dispatchedAt      DateTime? @map("dispatched_at")
+  arrivedAt         DateTime? @map("arrived_at")
+  deliveredAt       DateTime? @map("delivered_at")
+  proofPhotoUrls    String[]  @map("proof_photo_urls")
+  signatureUrl      String?   @map("signature_url")
+  recipientName     String?   @map("recipient_name")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  order             Order            @relation(fields: [orderId], references: [id])
+  address           CustomerAddress  @relation(fields: [deliveryAddressId], references: [id])
+  truck             Truck?           @relation(fields: [truckId], references: [id])
+  driver            User?            @relation(fields: [driverId], references: [id])
+
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([driverId, scheduledDate])
+  @@map("deliveries")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LEADS (public website forms — will replace .data/leads.ndjson)
+// ─────────────────────────────────────────────────────────────────
+
+enum LeadType {
+  contact
+  quote
+}
+
+enum LeadStatus {
+  new
+  in_progress
+  converted
+  closed
+}
+
+model Lead {
+  id          BigInt    @id @default(autoincrement())
+  publicId    String    @unique @default(cuid()) @map("public_id")
+  type        LeadType
+  status      LeadStatus @default(new)
+  payload     Json
+  customerId  BigInt?   @map("customer_id")   // matched / converted later
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  receivedAt  DateTime  @default(now()) @map("received_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  resolvedById BigInt?  @map("resolved_by_id")
+
+  @@index([status, receivedAt])
+  @@map("leads")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TELEPHONY (RingCentral)
+// ─────────────────────────────────────────────────────────────────
+
+enum CallDirection {
+  inbound
+  outbound
+}
+
+enum CallStatus {
+  ringing
+  answered
+  missed
+  voicemail
+  completed
+}
+
+model RcCall {
+  id              BigInt    @id @default(autoincrement())
+  rcSessionId     String    @unique @map("rc_session_id")
+  direction       CallDirection
+  fromNumber      String    @map("from_number")
+  fromNormalized  String    @map("from_normalized")
+  toNumber        String    @map("to_number")
+  toNormalized    String    @map("to_normalized")
+  customerId      BigInt?   @map("customer_id")
+  userId          BigInt?   @map("user_id")
+  status          CallStatus
+  startedAt       DateTime  @map("started_at")
+  answeredAt      DateTime? @map("answered_at")
+  endedAt         DateTime? @map("ended_at")
+  durationSec     Int?      @map("duration_sec")
+  recordingUrl    String?   @map("recording_url")
+  aiSummary       String?   @map("ai_summary")
+  notes           String?
+  rawPayload      Json      @map("raw_payload")
+
+  @@index([fromNormalized])
+  @@index([customerId])
+  @@index([startedAt])
+  @@map("rc_calls")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// AUDIT LOG (immutable — every mutation lands here)
+// ─────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+  actorId      BigInt?  @map("actor_id")
+  actorKind    String   @map("actor_kind")             // 'user' | 'system' | 'webhook' | 'ai'
+  ip           String?
+  userAgent    String?  @map("user_agent")
+  entityType   String   @map("entity_type")            // 'order' | 'product' | ...
+  entityId     BigInt?  @map("entity_id")
+  action       String                                  // 'create' | 'update' | 'void' | ...
+  before       Json?
+  after        Json?
+  metadata     Json?
+
+  actor        User?    @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId, occurredAt])
+  @@index([occurredAt])
+  @@map("audit_log")
+}

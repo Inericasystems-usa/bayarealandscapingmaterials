@@ -1,0 +1,34 @@
+{
+  "name": "inerica-pos-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Inerica POS desktop app (Electron) — produces a Windows installer.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.inerica.pos",
+    "productName": "Inerica POS",
+    "directories": {
+      "output": "../web/public/downloads",
+      "buildResources": "build"
+    },
+    "artifactName": "Inerica-POS-Setup.${ext}",
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

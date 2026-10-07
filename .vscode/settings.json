@@ -1,0 +1,8 @@
+{
+  // Use the workspace's pinned TypeScript (5.9.3) instead of the version
+  // bundled with VS Code. A newer bundled tsserver reports TS 6/7-era
+  // deprecations (e.g. baseUrl) that the build toolchain does not, which
+  // produces editor errors that don't exist in `pnpm typecheck` / `next build`.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

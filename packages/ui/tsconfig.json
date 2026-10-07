@@ -1,0 +1,4 @@
+{
+  "extends": "@balm/config-typescript/react-library.json",
+  "include": ["src/**/*"]
+}

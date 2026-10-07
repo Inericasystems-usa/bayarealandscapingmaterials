@@ -1,0 +1,171 @@
+/*
+ * BALM Design Tokens — Brand Kit aligned
+ *
+ * Source of truth: docs/architecture/design-system.md + official brand kit.
+ * Do not add raw palette values to components. Use semantic tokens.
+ *
+ * Brand palette (from brand kit):
+ *   Forest Green   #1B4332  → primary brand (moss scale, anchored at 700)
+ *   Earth Brown    #4E342E  → warm accent (clay scale, anchored at 500)
+ *   River Stone Grey #757575 → neutral (stone scale, anchored at 500)
+ *   Sky Blue       #A2D2FF  → cool accent (sky scale, anchored at 300)
+ *   Pure White     #FFFFFF
+ *
+ * Light mode is default. Dark mode toggled via [data-theme="dark"] on <html>.
+ * POS app forces data-theme="dark" by default; the rest follows user preference.
+ *
+ * These are plain CSS variables — framework-agnostic. They work with
+ * Tailwind v3 arbitrary values (bg-[var(--color-action)]) and with raw CSS.
+ */
+
+:root,
+[data-theme="light"] {
+  /* ── COLOR — MOSS / FOREST GREEN (primary brand) ────────────────── */
+  --color-moss-50:  #ebf3ee;
+  --color-moss-100: #d2e6da;
+  --color-moss-200: #a6cdb6;
+  --color-moss-300: #74af8e;
+  --color-moss-400: #468e68;
+  --color-moss-500: #2c6e4b;
+  --color-moss-600: #22573b;
+  --color-moss-700: #1b4332; /* ← brand Forest Green */
+  --color-moss-800: #143427;
+  --color-moss-900: #0e241b;
+  --color-moss-950: #081710;
+
+  /* ── COLOR — STONE / RIVER STONE GREY (neutral) ─────────────────── */
+  --color-stone-50:  #fafaf9;
+  --color-stone-100: #f3f3f2;
+  --color-stone-200: #e6e6e4;
+  --color-stone-300: #d2d2cf;
+  --color-stone-400: #9e9e9c;
+  --color-stone-500: #757575; /* ← brand River Stone Grey */
+  --color-stone-600: #5c5c5c;
+  --color-stone-700: #444444;
+  --color-stone-800: #2c2c2c;
+  --color-stone-900: #1a1a1a;
+  --color-stone-950: #101010;
+
+  /* ── COLOR — GRANITE (cool dark neutral, for secondary text) ────── */
+  --color-granite-100: #e2e6ea;
+  --color-granite-300: #aeb7bf;
+  --color-granite-500: #6b767e;
+  --color-granite-700: #434b51;
+  --color-granite-900: #1e2327;
+
+  /* ── COLOR — CLAY / EARTH BROWN (warm accent) ───────────────────── */
+  --color-clay-300: #9a776b;
+  --color-clay-400: #6e4c40;
+  --color-clay-500: #4e342e; /* ← brand Earth Brown */
+  --color-clay-600: #3d2823;
+  --color-clay-700: #2c1d19;
+
+  /* ── COLOR — SKY BLUE (cool accent) ─────────────────────────────── */
+  --color-sky-100: #e8f3ff;
+  --color-sky-200: #c9e4ff;
+  --color-sky-300: #a2d2ff; /* ← brand Sky Blue */
+  --color-sky-400: #6fb4f5;
+  --color-sky-500: #3d90e0;
+  --color-sky-600: #2a6fb8;
+
+  /* ── SEMANTIC TOKENS (light) ───────────────────────────────────── */
+  --color-bg-page: var(--color-stone-50);
+  --color-bg-elevated: #ffffff;
+  --color-bg-surface: var(--color-stone-100);
+  --color-bg-sunken: var(--color-stone-200);
+  --color-bg-inverted: var(--color-moss-900);
+
+  --color-text-primary: var(--color-stone-900);
+  --color-text-secondary: var(--color-granite-700);
+  --color-text-muted: var(--color-stone-500);
+  --color-text-inverted: var(--color-stone-50);
+  --color-text-brand: var(--color-moss-700);
+
+  --color-border: var(--color-stone-200);
+  --color-border-strong: var(--color-stone-300);
+  --color-border-focus: var(--color-moss-500);
+
+  --color-action: var(--color-moss-700);
+  --color-action-hover: var(--color-moss-800);
+  --color-action-press: var(--color-moss-900);
+  --color-action-fg: #ffffff;
+
+  --color-accent: var(--color-sky-300);
+  --color-accent-strong: var(--color-sky-600);
+  --color-accent-fg: var(--color-moss-900);
+
+  --color-success: var(--color-moss-600);
+  --color-warning: var(--color-clay-500);
+  --color-danger: var(--color-clay-600);
+  --color-info: var(--color-sky-600);
+
+  /* ── TYPOGRAPHY ────────────────────────────────────────────────── */
+  --font-display: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  /* ── RADIUS ────────────────────────────────────────────────────── */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  /* ── SHADOWS — soft, ambient (forest-tinted) ──────────────────── */
+  --shadow-sm:  0 1px 2px 0 rgb(14 36 27 / 0.05);
+  --shadow-md:  0 2px 4px -1px rgb(14 36 27 / 0.07),
+                0 4px 8px -2px rgb(14 36 27 / 0.06);
+  --shadow-lg:  0 4px 8px -2px rgb(14 36 27 / 0.08),
+                0 10px 20px -3px rgb(14 36 27 / 0.08);
+  --shadow-xl:  0 8px 16px -4px rgb(14 36 27 / 0.09),
+                0 20px 40px -6px rgb(14 36 27 / 0.11);
+  --shadow-inset: inset 0 1px 2px 0 rgb(14 36 27 / 0.06);
+
+  /* ── MOTION ────────────────────────────────────────────────────── */
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-default: 220ms;
+  --duration-slow: 320ms;
+  --duration-deliberate: 480ms;
+  --duration-cinematic: 720ms;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+}
+
+/* ── DARK MODE — only semantic tokens are remapped ───────────────── */
+[data-theme="dark"] {
+  --color-bg-page: var(--color-stone-950);
+  --color-bg-elevated: var(--color-stone-900);
+  --color-bg-surface: var(--color-stone-800);
+  --color-bg-sunken: var(--color-stone-950);
+  --color-bg-inverted: var(--color-moss-50);
+
+  --color-text-primary: var(--color-stone-50);
+  --color-text-secondary: var(--color-granite-300);
+  --color-text-muted: var(--color-stone-400);
+  --color-text-inverted: var(--color-stone-900);
+  --color-text-brand: var(--color-moss-300);
+
+  --color-border: #313131;
+  --color-border-strong: #444444;
+  --color-border-focus: var(--color-moss-400);
+
+  --color-action: var(--color-moss-400);
+  --color-action-hover: var(--color-moss-300);
+  --color-action-press: var(--color-moss-500);
+  --color-action-fg: var(--color-moss-950);
+
+  --color-accent: var(--color-sky-300);
+  --color-accent-strong: var(--color-sky-400);
+  --color-accent-fg: var(--color-moss-950);
+
+  --color-success: var(--color-moss-400);
+  --color-warning: var(--color-clay-400);
+  --color-danger: var(--color-clay-400);
+  --color-info: var(--color-sky-400);
+}

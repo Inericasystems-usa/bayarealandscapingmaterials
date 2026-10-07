@@ -1,0 +1,15 @@
+{
+  "extends": "@balm/config-typescript/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // The API is an application bundle, not a library — no consumer imports its
+    // .d.ts, so declaration emit is off. (Also avoids TS2883 on the many Express
+    // `Router()` exports, whose inferred type isn't locally nameable.)
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*"]
+}

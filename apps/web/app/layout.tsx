@@ -1,0 +1,130 @@
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Open_Sans, JetBrains_Mono } from "next/font/google";
+import {
+  ConsentDefaults,
+  GoogleTagManager,
+  GoogleTagManagerNoScript,
+} from "@/components/GoogleTagManager";
+import { AttributionCapture } from "@/components/AttributionCapture";
+import { TrackingListeners } from "@/components/TrackingListeners";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { COMPANY } from "@/lib/company";
+import { openingHoursSpecification } from "@/lib/hours";
+// Next.js processes this global stylesheet at build time.
+import "./globals.css";
+import React, { Suspense } from "react";
+
+// Display: Fraunces — a warm humanist variable serif (opsz/SOFT/WONK axes) that
+// scales from tight body-serif to oversized editorial display. Carries the
+// "earthy editorial" voice across every heading on the site.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  style: ["normal", "italic"],
+  axes: ["opsz", "SOFT", "WONK"],
+});
+
+// Body: Open Sans — a clean, quiet humanist grotesk that lets the serif lead.
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500"],
+});
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF9" },
+    { media: "(prefers-color-scheme: dark)", color: "#101010" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+};
+
+export const metadata: Metadata = {
+  metadataBase: new URL(`https://${COMPANY.domain}`),
+  title: {
+    default: `${COMPANY.legalName} — Bulk Landscape Supply in Richmond, CA`,
+    template: `%s · ${COMPANY.shortName}`,
+  },
+  description: COMPANY.tagline,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: COMPANY.shortName,
+    title: `${COMPANY.legalName} — Bulk Landscape Supply`,
+    description: COMPANY.tagline,
+  },
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true },
+  icons: {
+    icon: [{ url: "/favicon.ico" }],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+// LocalBusiness JSON-LD — emitted on every page; richer schema per page below.
+const localBusinessJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Store", // retail materials yard; Schema.org has no exact "MaterialsYard" type
+  "@id": `https://${COMPANY.domain}#business`,
+  name: COMPANY.legalName,
+  url: `https://${COMPANY.domain}`,
+  telephone: COMPANY.phoneE164,
+  email: COMPANY.email,
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: COMPANY.address.street,
+    addressLocality: COMPANY.address.city,
+    addressRegion: COMPANY.address.state,
+    postalCode: COMPANY.address.postalCode,
+    addressCountry: COMPANY.address.country,
+  },
+  geo: { "@type": "GeoCoordinates", latitude: COMPANY.geo.lat, longitude: COMPANY.geo.lng },
+  // Only profiles we actually hold a verified URL for (lib/company.ts). Unknown
+  // networks stay null there and are filtered out rather than invented.
+  sameAs: Object.values(COMPANY.social).filter((u): u is string => Boolean(u)),
+  areaServed: { "@type": "GeoCircle", geoMidpoint: { "@type": "GeoCoordinates", latitude: COMPANY.geo.lat, longitude: COMPANY.geo.lng }, geoRadius: `${COMPANY.serviceRadiusMi}mi` },
+  // Generated from COMPANY.hoursSpec — the same source the sticky call bar's
+  // "Open until 5:00 PM" indicator reads, so schema and UI cannot drift.
+  openingHoursSpecification: openingHoursSpecification(),
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${openSans.variable} ${jetbrains.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Consent Mode v2 defaults — must run BEFORE the tag container loads. */}
+        <ConsentDefaults />
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+        />
+      </head>
+      <body>
+        <GoogleTagManagerNoScript />
+        {children}
+        <GoogleTagManager />
+        {/* useSearchParams — a Suspense boundary keeps the rest of the tree static. */}
+        <Suspense fallback={null}>
+          <AttributionCapture />
+        </Suspense>
+        <TrackingListeners />
+        <ServiceWorkerRegister />
+      </body>
+    </html>
+  );
+}

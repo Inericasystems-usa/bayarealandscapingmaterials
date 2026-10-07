@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  # Desktop (Electron) is installed/built on demand — its heavy deps stay out
+  # of the default workspace install. Build it from apps/desktop directly.
+  - "!apps/desktop"
+  # Hardware bridge: native printer dep, installed only on counter PCs.
+  - "!apps/bridge"
+
+# Legacy folders (Back-end, Front-end) deliberately excluded.
+# Once migration is complete, they will be archived to docs/_legacy/.
