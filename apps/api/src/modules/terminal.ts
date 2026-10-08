@@ -1,6 +1,6 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
-import { config } from "../config.js";
+import { config, isDev } from "../config.js";
 import { stripe, isStripeConfigured, stripeMode } from "../lib/stripe.js";
 import { newId } from "../lib/store.js";
 import { payments } from "./payments.js";
@@ -16,10 +16,19 @@ const CENT = 0.01;
  *   3. reader collects the card; client confirms; server captures
  *
  * With no STRIPE_SECRET_KEY this returns deterministic simulated objects so the
- * register works end-to-end in dev. Set the key (+ reader) and it goes live.
+ * register works end-to-end in development only; anywhere else the card routes
+ * answer 503 until the key is set, and what gets recorded is what Stripe
+ * reports, never what the browser claims.
  */
 
 const toCents = (dollars: number) => Math.round(dollars * 100);
+
+// Outside development nothing here is simulated: no key, no card payments.
+function stripeReady(res: Response): boolean {
+  if (isStripeConfigured() || isDev) return true;
+  res.status(503).json({ error: { code: "stripe_not_configured", message: "The card reader is not configured." } });
+  return false;
+}
 
 const router = Router();
 router.use(guardWrites("register")); // taking card payments = register access
@@ -36,6 +45,7 @@ router.get("/status", async (_req, res) =>
 
 // Connection token for the Terminal SDK on the client.
 router.post("/connection-token", async (req, res) => {
+  if (!stripeReady(res)) return;
   if (!isStripeConfigured()) {
     return res.json({ data: { secret: `simulated_pst_${newId("ct").slice(3)}`, simulated: true } });
   }
@@ -46,12 +56,13 @@ router.post("/connection-token", async (req, res) => {
     return res.json({ data: { secret: ct.secret, simulated: false } });
   } catch (err) {
     req.log.error({ err }, "stripe connection token failed");
-    return res.json({ data: { secret: `simulated_pst_${newId("ct").slice(3)}`, simulated: true } });
+    return res.status(502).json({ error: { code: "stripe_error", message: "Could not reach Stripe." } });
   }
 });
 
 // Create a card-present PaymentIntent (manual capture).
 router.post("/payment-intents", async (req, res) => {
+  if (!stripeReady(res)) return;
   const parsed = z
     .object({ amount: z.number().positive(), currency: z.string().default("usd"), orderId: z.string().nullable().default(null) })
     .safeParse(req.body);
@@ -89,6 +100,7 @@ router.post("/payment-intents", async (req, res) => {
 
 // Capture a previously-confirmed PaymentIntent, and record the payment.
 router.post("/payment-intents/:id/capture", async (req, res) => {
+  if (!stripeReady(res)) return;
   const { id } = req.params as { id: string };
   const parsed = z.object({ amount: z.number().positive(), orderId: z.string().nullable().default(null) }).safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: "amount is required" } });
@@ -120,9 +132,10 @@ router.post("/payment-intents/:id/capture", async (req, res) => {
   }
   try {
     const pi = await stripe().paymentIntents.capture(id);
-    // Source of truth is Stripe's captured amount (cents → dollars), not the body.
-    const captured = (pi.amount_received ?? pi.amount ?? 0) / 100;
-    await record(pi.status === "succeeded" ? "succeeded" : "failed", pi.id, captured || parsed.data.amount);
+    // Source of truth is Stripe's captured amount (cents → dollars), not the body;
+    // a failed capture records the amount Stripe authorized.
+    const captured = (pi.amount_received ?? 0) / 100;
+    await record(pi.status === "succeeded" ? "succeeded" : "failed", pi.id, captured || pi.amount / 100);
     return res.json({ data: { id: pi.id, status: pi.status, amountCaptured: captured, simulated: false } });
   } catch (err) {
     req.log.error({ err }, "stripe capture failed");

@@ -1,4 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
+import type { IncomingMessage } from "node:http";
+import { config, isAllowedOrigin } from "../config.js";
+import { SESSION_COOKIE, userForToken } from "../modules/users.js";
+import { can } from "./permissions.js";
 
 /**
  * Customer-display relay (Flint parity: a local WebSocket on :3001 keyed by a
@@ -6,6 +10,11 @@ import { WebSocketServer, WebSocket } from "ws";
  * state; the customer-facing screen connects as a subscriber and renders it.
  * Pure in-memory relay — last state is cached per channel so a display that
  * connects mid-sale immediately shows the current cart.
+ *
+ * Carts show customer names and totals, so only signed-in staff may connect:
+ * the upgrade must carry a live session (the browser's session cookie, or the
+ * session token as ?token=) from an allowed origin, and publishing as the
+ * register needs register access.
  */
 interface Channel {
   displays: Set<WebSocket>;
@@ -23,8 +32,34 @@ function channel(id: string): Channel {
   return c;
 }
 
+// The session token an upgrade request presents: ?token= or the session cookie.
+function sessionToken(req: IncomingMessage, url: URL): string | null {
+  const fromQuery = url.searchParams.get("token");
+  if (fromQuery) return fromQuery;
+  for (const pair of (req.headers.cookie ?? "").split(";")) {
+    const eq = pair.indexOf("=");
+    if (eq > 0 && pair.slice(0, eq).trim() === SESSION_COOKIE) return pair.slice(eq + 1).trim();
+  }
+  return null;
+}
+
 export function startDisplayServer(port: number, log: (msg: string) => void): WebSocketServer {
-  const wss = new WebSocketServer({ port });
+  const wss = new WebSocketServer({
+    port,
+    host: config.HOST,
+    verifyClient: ({ origin, req }, done) => {
+      if (origin && !isAllowedOrigin(origin)) return done(false, 403);
+      const url = new URL(req.url ?? "/", "http://localhost");
+      userForToken(sessionToken(req, url)).then(
+        (user) => {
+          if (!user) return done(false, 401);
+          if (url.searchParams.get("role") === "register" && !can(user, "register")) return done(false, 403);
+          done(true);
+        },
+        () => done(false, 500),
+      );
+    },
+  });
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -48,6 +83,6 @@ export function startDisplayServer(port: number, log: (msg: string) => void): We
   });
 
   wss.on("error", (err) => log(`display socket error: ${(err as Error).message}`));
-  log(`customer display socket on ws://localhost:${port}`);
+  log(`customer display socket on ws://${config.HOST}:${port} (staff sessions only)`);
   return wss;
 }

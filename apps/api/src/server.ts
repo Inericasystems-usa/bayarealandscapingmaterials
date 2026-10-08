@@ -3,10 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { pinoHttp } from "pino-http";
+import { pinoHttp, type Options as HttpLoggerOptions } from "pino-http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { config, isDev } from "./config.js";
+import { config, isDev, isAllowedOrigin } from "./config.js";
 import leadsRoutes from "./modules/leads/routes.js";
 import catalogRoutes from "./modules/catalog.js";
 import inventoryRoutes from "./modules/inventory.js";
@@ -21,7 +21,7 @@ import integrationRoutes, { syncReceiverRoutes, registerWebsiteSync, startWebsit
 import auditRoutes from "./modules/audit.js";
 import deliveriesRoutes from "./modules/deliveries.js";
 import paymentsRoutes from "./modules/payments.js";
-import { authRoutes, usersRoutes } from "./modules/users.js";
+import { authRoutes, usersRoutes, purgeStaleSessions } from "./modules/users.js";
 import timeclockRoutes from "./modules/timeclock.js";
 import settingsRoutes from "./modules/settings.js";
 import customersRoutes from "./modules/customers.js";
@@ -40,7 +40,83 @@ import { initSentry, isSentryEnabled, captureError } from "./lib/sentry.js";
 import { isDbConfigured, initDb, closeDb, storeMode, ping } from "./lib/db.js";
 import { startTelematics } from "./modules/telematics.js";
 import { startDisplayServer } from "./lib/display.js";
+import { redactPan, rejectCardNumbers } from "./lib/pan-guard.js";
 import { seedData } from "./seed.js";
+
+// Credentials in a query string, and any card number, never reach the logs.
+const scrubUrl = (url: string | undefined): string =>
+  redactPan(String(url ?? "").replace(/([?&](?:token|access_token|api_key|key|secret)=)[^&#]*/gi, "$1[redacted]"));
+
+/**
+ * Request-log options. Session cookies, Bearer tokens, CSRF and integration
+ * tokens and Set-Cookie are censored, and card numbers are scrubbed from URLs
+ * and error messages (PCI DSS 3.3.1, 8.3.2, 10.3).
+ */
+export function httpLoggerOptions(underTest = false): HttpLoggerOptions {
+  return {
+    genReqId: (req: IncomingMessage, res: ServerResponse) => {
+      const existing = (req.headers["x-request-id"] as string) || randomUUID();
+      res.setHeader("x-request-id", existing);
+      return existing;
+    },
+    autoLogging: !underTest,
+    transport: isDev && !underTest ? { target: "pino-pretty", options: { colorize: true } } : undefined,
+    level: underTest ? "silent" : "info",
+    redact: {
+      paths: [
+        "req.headers.cookie",
+        "req.headers.authorization",
+        'req.headers["x-csrf-token"]',
+        'req.headers["x-inerica-token"]',
+        'req.headers["x-telematics-token"]',
+        'req.headers["verification-token"]',
+        'res.headers["set-cookie"]',
+      ],
+      censor: "[redacted]",
+    },
+    serializers: {
+      // The parsed query is left out: the scrubbed url already carries it.
+      req: (r: { id: unknown; method: string; url: string; headers: unknown; remoteAddress: string; remotePort: number }) => ({
+        id: r.id,
+        method: r.method,
+        url: scrubUrl(r.url),
+        headers: r.headers,
+        remoteAddress: r.remoteAddress,
+        remotePort: r.remotePort,
+      }),
+      // A body-parser error carries the raw request body (a sign-in's password,
+      // a card number): it is never logged.
+      err: (e: unknown) => {
+        if (!e || typeof e !== "object") return e;
+        const { body: _body, ...out } = e as Record<string, unknown>;
+        for (const [k, v] of Object.entries(out)) if (typeof v === "string") out[k] = redactPan(v);
+        return out;
+      },
+    },
+  };
+}
+
+/** Structured JSON errors. Outside development a 5xx never carries the error's message, code or stack. */
+export function errorHandler(
+  err: Error & { statusCode?: number; status?: number; code?: string },
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
+  const raw = Number(err.statusCode ?? err.status);
+  const status = Number.isInteger(raw) && raw >= 400 && raw <= 599 ? raw : 500;
+  (req.log ?? console).error({ err, route: scrubUrl(req.originalUrl) }, "request failed");
+  if (status >= 500) captureError(err, { route: scrubUrl(req.originalUrl), trace_id: req.id });
+  if (res.headersSent) return;
+  const hide = status >= 500 && !isDev;
+  res.status(status).send({
+    error: {
+      code: hide ? "internal_error" : (err.code ?? "internal_error"),
+      message: hide ? "Something went wrong." : err.message,
+      trace_id: req.id,
+    },
+  });
+}
 
 export function buildServer(): Express {
   const app = express();
@@ -51,20 +127,27 @@ export function buildServer(): Express {
   // on `true`). Direct LAN/dev connections fall back to the socket address.
   app.set("trust proxy", 1);
 
-  // Security headers (CSP configured per-route where needed).
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // Structured request logging + request id (trace_id). Under test, autoLogging
+  // is off and the level is silent, but req.log/req.id are still attached.
+  // First, so every error, a malformed JSON body's included, is logged through
+  // the redacting serializers rather than straight to the console.
+  app.use(pinoHttp(httpLoggerOptions(Boolean(process.env.VITEST))));
 
-  // CORS — strict allow-list from config, plus (in dev only) any localhost or
-  // private-LAN origin so other devices on the network can use the POS without
-  // per-IP configuration. Production stays locked to CORS_ORIGINS.
+  // Security headers. The API returns JSON (uploaded images set their own,
+  // sandboxed policy), so nothing it serves may load anything or be framed.
+  app.use(
+    helmet({
+      contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    }),
+  );
+
+  // CORS — an exact allow-list (config.corsOrigins; in development also any
+  // localhost or private-LAN origin). Only those origins get CORS headers, and
+  // with them credentials. Requests without an Origin need none.
   app.use(
     cors({
       origin(origin, cb) {
-        if (!origin) return cb(null, true); // curl / same-origin / native apps
-        if (config.CORS_ORIGINS.includes(origin)) return cb(null, true);
-        if (isDev && /^https?:\/\/(localhost|127\.0\.0\.1|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$/.test(origin))
-          return cb(null, true);
-        return cb(null, false);
+        cb(null, Boolean(origin && isAllowedOrigin(origin)));
       },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -81,31 +164,20 @@ export function buildServer(): Express {
   const largeBodyRoute = (p: string) => p.startsWith("/api/v1/uploads") || /^\/api\/v1\/deliveries\/[^/]+\/pod$/.test(p);
   app.use((req, res, next) => (largeBodyRoute(req.path) ? next() : jsonSmall(req, res, next)));
 
-  // Structured request logging + request id (trace_id). Under test, autoLogging
-  // is off and the level is silent, but req.log/req.id are still attached.
-  const underTest = Boolean(process.env.VITEST);
-  app.use(
-    pinoHttp({
-      genReqId: (req: IncomingMessage, res: ServerResponse) => {
-        const existing = (req.headers["x-request-id"] as string) || randomUUID();
-        res.setHeader("x-request-id", existing);
-        return existing;
-      },
-      autoLogging: !underTest,
-      transport: isDev && !underTest ? { target: "pino-pretty", options: { colorize: true } } : undefined,
-      level: underTest ? "silent" : "info",
-    }),
-  );
-
-  // Rate limit — generous default; tighter per-route inside modules.
+  // Rate limit — generous default; tighter per-route inside modules. (Relaxed
+  // under test, where the whole suite shares one client IP.)
   app.use(
     rateLimit({
       windowMs: 60_000,
-      max: 200,
+      max: process.env.VITEST ? 10_000 : 200,
       standardHeaders: true,
       legacyHeaders: false,
     }),
   );
+
+  // Card numbers never come in through a request (lib/pan-guard.ts). Routes
+  // that parse their own large bodies run the same check after parsing.
+  app.use(rejectCardNumbers);
 
   // ── Default-deny authentication ─────────────────────────────────
   // Every route below requires a valid session except the public allow-list in
@@ -195,19 +267,7 @@ export function buildServer(): Express {
   });
 
   // Global error handler — structured JSON, never HTML.
-  app.use((err: Error & { statusCode?: number; status?: number; code?: string }, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.statusCode ?? err.status ?? 500;
-    (req.log ?? console).error({ err, route: req.originalUrl }, "request failed");
-    if (status >= 500) captureError(err, { route: req.originalUrl, trace_id: req.id });
-    if (res.headersSent) return;
-    res.status(status).send({
-      error: {
-        code: err.code ?? "internal_error",
-        message: status >= 500 && !isDev ? "Something went wrong." : err.message,
-        trace_id: req.id,
-      },
-    });
-  });
+  app.use(errorHandler);
 
   return app;
 }
@@ -219,10 +279,15 @@ async function main() {
   const app = buildServer();
   console.log(`🗄️  store: ${storeMode()}`);
   console.log(`🛰️  error tracking: ${isSentryEnabled() ? "sentry" : "off"}`);
+  // Sessions stored before tokens were hashed (and long-dead ones) can't be
+  // used; clear them in the background so a big collection doesn't delay boot.
+  void purgeStaleSessions()
+    .then((n) => n && console.log(`🔐 removed ${n} expired or pre-hashing session(s)`))
+    .catch((err) => console.warn("session cleanup failed", err));
   await seedData((msg) => console.log(`🌱 ${msg}`));
   startTelematics((msg) => console.log(`📡 ${msg}`));
   startWebsitePull((msg) => console.log(`🔄 ${msg}`));
-  startDisplayServer(3001, (msg) => console.log(`🖥️  ${msg}`));
+  if (config.DISPLAY_SOCKET === "on") startDisplayServer(3001, (msg) => console.log(`🖥️  ${msg}`));
   startMessagingJobs((msg) => console.log(`💬 ${msg}`));
   console.log(`💬 RingCentral SMS mode: ${ringCentralMode()}`);
   void ensureInboundSubscription()
@@ -243,8 +308,9 @@ async function main() {
   );
   if (rcRenew.unref) rcRenew.unref();
 
-  const server = app.listen(config.PORT, "0.0.0.0", () => {
-    console.log(`✅ BALM API listening on http://localhost:${config.PORT}`);
+  // Loopback unless HOST says otherwise: only the reverse proxy should reach it.
+  const server = app.listen(config.PORT, config.HOST, () => {
+    console.log(`✅ BALM API listening on http://${config.HOST}:${config.PORT}`);
   });
   server.on("error", (err) => {
     console.error(err);

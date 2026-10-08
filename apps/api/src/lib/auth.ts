@@ -14,8 +14,9 @@ function isPublic(method: string, rawUrl: string): boolean {
   if (method === "OPTIONS") return true; // CORS preflight
   const path = rawUrl.split("?")[0] ?? rawUrl;
 
-  // Liveness/readiness/metrics + API root.
-  if (method === "GET" && (path === "/health" || path === "/ready" || path === "/metrics" || path === "/api/v1")) return true;
+  // Liveness/readiness + API root. (/metrics needs a session: process gauges
+  // aren't for the internet.)
+  if (method === "GET" && (path === "/health" || path === "/ready" || path === "/api/v1")) return true;
   // Auth endpoints self-handle (login is public; /me and /logout 401 on their own).
   if (path.startsWith("/api/v1/auth/")) return true;
   // Public website: browse the catalog…

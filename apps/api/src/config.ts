@@ -6,9 +6,9 @@ import path from "node:path";
  * Load local env files into process.env BEFORE validating. The dev/start
  * scripts don't pass --env-file, so without this `.env.local` is ignored and
  * every integration (Stripe, RingCentral) silently stays in simulated mode.
- * Precedence: real shell env is left untouched where already set is not
- * guaranteed by loadEnvFile, so we load `.env` first then `.env.local` (local
- * wins). In production the platform injects real env and these files are absent.
+ * Precedence: loadEnvFile never overwrites a variable that is already set, so
+ * the real environment (systemd, PM2, the shell) wins, then `.env`, then
+ * `.env.local`. In production the platform injects real env.
  */
 // Skip local env files under Vitest so tests are hermetic — otherwise .env.local
 // (e.g. MONGODB_URL for the dev database) would override the in-memory MongoDB the
@@ -33,13 +33,26 @@ if (!process.env.VITEST) {
  * extend the schema here — and `npm run dev` will tell you exactly which env
  * var is missing.
  */
-const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+export const envSchema = z.object({
+  // Unset means production: every safety control stays on unless a developer
+  // explicitly says NODE_ENV=development (apps/api/.env.local).
+  NODE_ENV: z.enum(["development", "test", "production"]).default("production"),
+  // Interface the API and the customer-display socket listen on. Loopback by
+  // default, so only the reverse proxy reaches them; a counter PC serving
+  // tablets on the shop LAN sets HOST=0.0.0.0.
+  HOST: z.string().min(1).default("127.0.0.1"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  // Origins allowed besides the public site (see corsOrigins below), comma
+  // separated, e.g. http://localhost:3000 on the counter PC.
   CORS_ORIGINS: z
     .string()
-    .default("http://localhost:3000")
-    .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
+    .default("")
+    .transform((s) => s.split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean)),
+  // Demo staff, vendors, fleet and sample orders. Only with SEED_DEMO=true, and
+  // never in production (refused at boot, see startupProblems).
+  SEED_DEMO: z.enum(["true", "false"]).optional(),
+  // The customer-display relay on :3001. "off" where nothing can reach it (cloud).
+  DISPLAY_SOCKET: z.enum(["on", "off"]).default("on"),
   // Stripe Terminal — when set, payments go live; otherwise simulated mode.
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
@@ -59,7 +72,9 @@ const envSchema = z.object({
   RC_JWT: z.string().optional(), // server-to-server JWT credential
   RC_SMS_FROM: z.string().optional(), // SMS-enabled RingCentral number, E.164
   RC_WEBHOOK_URL: z.string().optional(), // public URL RC posts inbound SMS to
-  RC_WEBHOOK_TOKEN: z.string().optional(), // shared secret to verify inbound webhooks
+  // Shared secret RC echoes in a Verification-Token header on every webhook
+  // call. Required outside development: without it inbound webhooks are refused.
+  RC_WEBHOOK_TOKEN: z.string().optional(),
   // Owner phone (E.164) texted when a website contact/quote lead arrives, so a
   // new lead is never silently missed. No-op until set (and RC configured).
   LEAD_NOTIFY_SMS: z.string().optional(),
@@ -82,3 +97,53 @@ if (!parsed.success) {
 export const config = parsed.data;
 export const isDev = config.NODE_ENV === "development";
 export const isProd = config.NODE_ENV === "production";
+
+/**
+ * Whether this machine serves production, decided without NODE_ENV (a stray
+ * `pnpm dev` or a bad unit file is exactly what gets NODE_ENV wrong). Servers
+ * carry /etc/inerica/production (infra/pci/host/60-production-mode.sh);
+ * INERICA_PRODUCTION=1 says the same where that file isn't visible.
+ */
+export const productionHost =
+  process.env.INERICA_PRODUCTION === "1" || existsSync("/etc/inerica/production");
+
+/** Settings the API refuses to start with. Empty when it is safe to run. */
+export function startupProblems(
+  c: { NODE_ENV: string; SEED_DEMO?: string },
+  env: NodeJS.ProcessEnv,
+  onProductionHost: boolean,
+): string[] {
+  const problems: string[] = [];
+  // Every control that can be switched off keys off NODE_ENV, so on a
+  // production host anything but "production" would switch them all off.
+  if (onProductionHost && c.NODE_ENV !== "production")
+    problems.push(`NODE_ENV is "${c.NODE_ENV}" on a production host; run with NODE_ENV=production (never tsx watch / pnpm dev)`);
+  if (c.SEED_DEMO === "true" && (c.NODE_ENV === "production" || onProductionHost))
+    problems.push("SEED_DEMO=true: demo logins and sample data are never seeded in production");
+  if (env.ALLOW_PIN_LOGIN === "true" && onProductionHost)
+    problems.push("ALLOW_PIN_LOGIN=true: PIN sign-in is for counter PCs, never for an internet-facing server");
+  // The webhook refuses unsigned calls outside development, so without the
+  // token inbound texts, STOP replies included, would silently stop arriving.
+  if (env.RC_WEBHOOK_URL && !env.RC_WEBHOOK_TOKEN && c.NODE_ENV !== "development")
+    problems.push("RC_WEBHOOK_URL is set without RC_WEBHOOK_TOKEN: inbound SMS (and STOP opt-outs) would be refused");
+  return problems;
+}
+
+// Tests may run on any machine, so the host marker is ignored under Vitest.
+const problems = startupProblems(config, process.env, productionHost && !process.env.VITEST);
+if (problems.length) {
+  console.error(`❌ Refusing to start:\n${problems.map((p) => `  - ${p}`).join("\n")}`);
+  process.exit(1);
+}
+
+// Browsers that may call the API with credentials: the public site plus
+// CORS_ORIGINS, matched exactly. In development only, any localhost or
+// private-LAN origin too, so other devices on the shop network work unconfigured.
+const SITE_ORIGINS = ["https://bayarealandscapingmaterials.com", "https://www.bayarealandscapingmaterials.com"];
+export const corsOrigins = [...new Set([...SITE_ORIGINS, ...config.CORS_ORIGINS])];
+const DEV_ORIGIN =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?::\d+)?$/;
+
+export function isAllowedOrigin(origin: string): boolean {
+  return corsOrigins.includes(origin) || (isDev && DEV_ORIGIN.test(origin));
+}

@@ -1,9 +1,11 @@
+import { randomInt } from "node:crypto";
+import { config } from "./config.js";
 import { products as catalog, type Product } from "./modules/catalog.js";
 import { inventory, type InventoryItem } from "./modules/inventory.js";
 import { vendors, type Vendor } from "./modules/vendors.js";
 import { trucks, drivers, type Truck, type Driver } from "./modules/fleet.js";
 import { deliveries, type Delivery } from "./modules/deliveries.js";
-import { users, type User } from "./modules/users.js";
+import { users, passwordSchema, type User } from "./modules/users.js";
 import { customers, encryptCustomer, type Customer } from "./modules/customers.js";
 import { orders, type Order } from "./modules/orders.js";
 import { getSettings } from "./modules/settings.js";
@@ -83,9 +85,10 @@ export async function seedData(log: (msg: string) => void): Promise<void> {
   }
 
   // Demo/sample business data (vendors, fleet, deliveries, sample customers &
-  // orders) is landscaping-flavored. A clean store install (e.g. the R&S tire
-  // build) sets SEED_DEMO=false so only the real catalog + inventory + staff seed.
-  const seedDemo = process.env.SEED_DEMO !== "false";
+  // orders, demo staff) is landscaping-flavored and only seeds with an explicit
+  // SEED_DEMO=true, never in production (config.ts refuses to start with it
+  // there). Otherwise only the real catalog + inventory + the first admin seed.
+  const seedDemo = config.SEED_DEMO === "true" && config.NODE_ENV !== "production";
 
   const now2 = new Date().toISOString();
   const vendorRows: Vendor[] = SEED_VENDORS.map((v, i) => ({
@@ -127,26 +130,36 @@ export async function seedData(log: (msg: string) => void): Promise<void> {
   if (seedDemo && (await deliveries.seedIfEmpty(deliveryRows))) log(`seeded ${deliveryRows.length} deliveries`);
 
   // ── Employee accounts (admin creates the rest in the UI) ─────────
-  // The admin password comes from ADMIN_PASSWORD when set. In production
-  // (SEED_DEMO=false) we REFUSE to seed a default-credential admin: if
-  // ADMIN_PASSWORD is unset we skip the admin seed and warn, so a fresh
-  // production DB never ships with a known password. The demo cashier/
-  // manager/trainee/driver logins only seed in demo mode.
+  // No built-in credentials anywhere (PCI DSS 2.2.2). The first admin seeds
+  // only from ADMIN_PASSWORD (12+ characters, letters and numbers); without it
+  // the admin seed is skipped and a fresh DB has no known login. Demo staff
+  // seed only in demo mode and share DEMO_PASSWORD. PINs default to random:
+  // admins and managers never sign in with one, and counter staff get theirs
+  // set in Employees.
+  const randomPin = () => String(randomInt(100000, 1000000));
+  const usable = (pw: string | undefined, name: string): pw is string => {
+    if (passwordSchema.safeParse(pw).success) return true;
+    log(`WARNING: ${name} ${pw ? "is too weak (12+ characters, letters and numbers)" : "is not set"} — skipping those logins.`);
+    return false;
+  };
   const adminEmail = process.env.ADMIN_EMAIL || "admin@balm.local";
-  const adminPassword = process.env.ADMIN_PASSWORD || (seedDemo ? "admin1234" : "");
-  const demoStaff = [
-    { name: "Sam Cashier", email: "cashier@balm.local", role: "cashier" as User["role"], phone: "", pin: "1111", password: "cashier12" },
-    { name: "Robby Kumar", email: "manager@balm.local", role: "manager" as User["role"], phone: "", pin: "3333", password: "manager12" },
-    { name: "Tina Trainee", email: "trainee@balm.local", role: "trainee" as User["role"], phone: "", pin: "4444", password: "trainee12" },
-    { name: "Luis Mendoza", email: "driver@balm.local", role: "driver" as User["role"], phone: "(510) 555-0111", pin: "2222", password: "driver12" },
-  ];
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const demoPassword = process.env.DEMO_PASSWORD;
   const userSeed: { name: string; email: string; role: User["role"]; phone: string; pin: string; password: string }[] = [];
-  if (adminPassword) {
-    userSeed.push({ name: "Owner / Admin", email: adminEmail, role: "admin", phone: "(510) 860-4461", pin: process.env.ADMIN_PIN || "1234", password: adminPassword });
-  } else {
-    log("WARNING: ADMIN_PASSWORD not set and SEED_DEMO=false — skipping admin seed; create an admin manually or set ADMIN_PASSWORD before first boot.");
+  let demoLogins = false;
+  // Only a fresh DB seeds logins, so only then are the passwords checked.
+  if ((await users.count()) === 0) {
+    if (usable(adminPassword, "ADMIN_PASSWORD"))
+      userSeed.push({ name: "Owner / Admin", email: adminEmail, role: "admin", phone: "(510) 860-4461", pin: process.env.ADMIN_PIN || randomPin(), password: adminPassword });
+    demoLogins = seedDemo && usable(demoPassword, "DEMO_PASSWORD");
+    if (demoLogins && demoPassword)
+      userSeed.push(
+        { name: "Sam Cashier", email: "cashier@balm.local", role: "cashier", phone: "", pin: randomPin(), password: demoPassword },
+        { name: "Robby Kumar", email: "manager@balm.local", role: "manager", phone: "", pin: randomPin(), password: demoPassword },
+        { name: "Tina Trainee", email: "trainee@balm.local", role: "trainee", phone: "", pin: randomPin(), password: demoPassword },
+        { name: "Luis Mendoza", email: "driver@balm.local", role: "driver", phone: "(510) 555-0111", pin: randomPin(), password: demoPassword },
+      );
   }
-  if (seedDemo) userSeed.push(...demoStaff);
   const userRows: User[] = userSeed.map((u, i) => ({
     id: `usr_seed${i + 1}`,
     name: u.name,
@@ -160,7 +173,7 @@ export async function seedData(log: (msg: string) => void): Promise<void> {
     createdAt: now2,
     updatedAt: now2,
   }));
-  if (userRows.length && (await users.seedIfEmpty(userRows))) log(`seeded ${userRows.length} user(s)${seedDemo ? " (demo logins)" : ""}`);
+  if (userRows.length && (await users.seedIfEmpty(userRows))) log(`seeded ${userRows.length} user(s)${demoLogins ? " (demo logins)" : ""}`);
 
   // ── Store settings (tax 9.75%, tenant identity, EPA delivery fees) ──
   await getSettings();

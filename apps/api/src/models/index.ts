@@ -130,7 +130,15 @@ defineModel(
   [{ email: 1 }],
 );
 
-defineModel("sessions", { token: String, userId: String, expiresAt: String }, [{ token: 1 }, { userId: 1 }]);
+// Sessions keep only a hash of the token (modules/users.ts).
+defineModel(
+  "sessions",
+  { tokenHash: String, userId: String, expiresAt: String, lastSeenAt: String },
+  [{ tokenHash: 1 }, { userId: 1 }],
+);
+
+// Sign-in attempts per account (keyed by a hash of the address) and any lockout.
+defineModel("login_failures", { count: Number, base: Number, lockedUntil: String });
 
 defineModel(
   "register-sessions",

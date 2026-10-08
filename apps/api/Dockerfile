@@ -14,6 +14,10 @@ RUN pnpm install --frozen-lockfile
 FROM node:22-alpine AS runtime
 RUN corepack enable
 ENV NODE_ENV=production
+# Inside the container the API must listen on all interfaces (it binds
+# 127.0.0.1 by default). Publish it on the host's loopback only, e.g.
+#   docker run -p 127.0.0.1:4000:4000 ...
+ENV HOST=0.0.0.0
 WORKDIR /app
 COPY --from=deps /app ./
 WORKDIR /app/apps/api

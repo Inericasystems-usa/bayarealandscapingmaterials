@@ -1,4 +1,4 @@
-import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
+import { scryptSync, randomBytes, timingSafeEqual, createHash } from "node:crypto";
 
 /**
  * Password hashing (scrypt) + opaque session tokens. No external deps — this is
@@ -22,4 +22,20 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 export function newToken(): string {
   return randomBytes(24).toString("hex");
+}
+
+/**
+ * One-way digest of a session token (or other lookup key). The store keeps only
+ * this, so a database copy can't be replayed as a login (PCI DSS 8.3.2). Tokens
+ * are 192-bit random, so a fast hash is enough.
+ */
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+/** Constant-time string compare (no secret leaks through response timing). */
+export function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
 }

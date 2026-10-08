@@ -195,6 +195,30 @@ export class Collection<T extends Entity> {
     return doc ? toEntity<T>(doc) : null;
   }
 
+  /**
+   * Atomic update of row `id`, created if missing: `inc` adds to numeric fields
+   * and `max` raises fields to at least the given values (ISO dates compare
+   * correctly as strings). Returns the updated row. Unlike find-then-update,
+   * parallel calls never read the same value.
+   */
+  async bump(id: string, change: { inc?: { [K in keyof T]?: number }; max?: Partial<T> }): Promise<T> {
+    const now = new Date().toISOString();
+    const doc = await this.model
+      .findOneAndUpdate(
+        { id },
+        {
+          ...(change.inc && { $inc: change.inc }),
+          ...(change.max && { $max: change.max }),
+          $set: { updatedAt: now },
+          $setOnInsert: { createdAt: now },
+        },
+        { new: true, upsert: true },
+      )
+      .session(sess())
+      .lean();
+    return toEntity<T>(doc);
+  }
+
   async remove(id: string): Promise<boolean> {
     const r = await this.model.deleteOne({ id }).session(sess());
     return (r.deletedCount ?? 0) > 0;

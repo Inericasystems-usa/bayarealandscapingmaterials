@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { Request } from "express";
-import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { guardAll } from "../lib/auth.js";
+import { safeEqual } from "../lib/crypto.js";
 import { getSettings, updateSettings } from "./settings.js";
 import { products, type Product } from "./catalog.js";
 import { inventory, type InventoryItem } from "./inventory.js";
@@ -174,13 +174,6 @@ const catalogSchema = z.object({
   inventory: z.array(z.record(z.unknown())).default([]),
   deletedProductIds: z.array(z.string()).default([]),
 });
-
-// Constant-time token compare (avoids leaking the token via response timing).
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ab.length === bb.length && timingSafeEqual(ab, bb);
-}
 
 async function badToken(req: Request): Promise<boolean> {
   const expected = (await getSettings()).website?.apiToken;

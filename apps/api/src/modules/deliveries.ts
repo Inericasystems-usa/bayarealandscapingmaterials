@@ -4,6 +4,7 @@ import { Collection, newId, type Entity } from "../lib/store.js";
 import { trucks, drivers } from "./fleet.js";
 import { bus } from "../lib/events.js";
 import { guardWrites } from "../lib/auth.js";
+import { rejectCardNumbers } from "../lib/pan-guard.js";
 
 export type DeliveryStatus = "scheduled" | "loading" | "enroute" | "delivered" | "cancelled";
 
@@ -208,7 +209,7 @@ router.patch("/:id/status", async (req, res) => {
 // Image data URLs make this payload large, so the route gets its own body limit.
 // NOTE: images are stored inline in the document store; production should offload
 // them to object storage (S3/GCS) and keep only URLs here.
-router.post("/:id/pod", json({ limit: "8mb" }), async (req, res) => {
+router.post("/:id/pod", json({ limit: "8mb" }), rejectCardNumbers, async (req, res) => {
   const { id } = req.params as { id: string };
   const parsed = z
     .object({

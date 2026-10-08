@@ -3,7 +3,9 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { Collection, newId, type Entity } from "../lib/store.js";
 import { bus } from "../lib/events.js";
-import { config } from "../config.js";
+import { config, isDev } from "../config.js";
+import { safeEqual } from "../lib/crypto.js";
+import { redactPan } from "../lib/pan-guard.js";
 import { getAuthUser } from "./users.js";
 import { listLeads } from "./leads/store.js";
 import {
@@ -540,7 +542,8 @@ async function handleInbound(fromRaw: string, text: string, log?: (msg: string) 
   const START = ["START", "UNSTOP", "YES"];
   const HELP = ["HELP", "INFO"];
 
-  // Store the inbound message in the thread.
+  // Store the inbound message in the thread, minus any card number a customer
+  // texted (it can't be refused, so it is never kept).
   await messages.insert({
     id: newId("msg"),
     direction: "in",
@@ -549,7 +552,7 @@ async function handleInbound(fromRaw: string, text: string, log?: (msg: string) 
     from: e164,
     customerId: null,
     customerName: "",
-    body: text,
+    body: redactPan(text),
     status: "Received",
     providerId: null,
     trigger: null,
@@ -924,8 +927,19 @@ router.delete("/consents/:phone", async (req, res) => {
   return res.json({ data: { phone: e164, revoked: true } });
 });
 
+/**
+ * Whether a webhook call carries our verification token. RingCentral sends the
+ * verificationToken we subscribed with (lib/ringcentral.ts) in a
+ * Verification-Token header, never in the URL. With no token configured only
+ * development accepts calls; anywhere else they are refused.
+ */
+export function webhookAuthorized(got: unknown, expected: string | undefined, allowUnsigned: boolean): boolean {
+  if (!expected) return allowUnsigned;
+  return typeof got === "string" && safeEqual(got, expected);
+}
+
 // Inbound webhook (RingCentral → us). No bearer auth (external caller);
-// verified by the RC validation-token handshake + optional shared secret.
+// verified by the RC validation-token handshake + the verification token.
 router.post("/webhook", async (req, res) => {
   // RC subscription handshake: echo the Validation-Token header back.
   const validation = req.headers["validation-token"];
@@ -933,12 +947,8 @@ router.post("/webhook", async (req, res) => {
     res.set("Validation-Token", validation);
     return res.status(200).end();
   }
-  // Optional shared-secret check.
-  if (config.RC_WEBHOOK_TOKEN) {
-    const q = req.query as Record<string, string | undefined>;
-    if (q.token !== config.RC_WEBHOOK_TOKEN)
-      return res.status(401).json({ error: { code: "unauthorized", message: "Bad webhook token" } });
-  }
+  if (!webhookAuthorized(req.headers["verification-token"], config.RC_WEBHOOK_TOKEN, isDev))
+    return res.status(401).json({ error: { code: "unauthorized", message: "Bad webhook token" } });
   const body = req.body as
     | { body?: { id?: number | string; direction?: string; from?: { phoneNumber?: string }; subject?: string; type?: string; messageStatus?: string } }
     | undefined;

@@ -1,4 +1,4 @@
-import { config } from "../config.js";
+import { config, isDev } from "../config.js";
 
 /**
  * RingCentral server-to-server client (ADR-0004). Same philosophy as stripe.ts:
@@ -130,11 +130,21 @@ export async function fetchOutboundStatuses(sinceISO: string): Promise<RcMessage
  * POSTs new messages to our /webhook endpoint. Safe to call on boot — failures
  * are logged by the caller and never crash the server. No-op unless both the
  * RC creds and a public RC_WEBHOOK_URL are configured.
+ *
+ * RingCentral echoes RC_WEBHOOK_TOKEN back in a Verification-Token header on
+ * every call, which is how the webhook knows the call is genuine. The webhook
+ * refuses calls without it outside development, so we don't subscribe without it.
  */
 export async function ensureInboundSubscription(): Promise<{ created: boolean; reason?: string }> {
   if (!isRingCentralConfigured() || !config.RC_WEBHOOK_URL) {
     return { created: false, reason: "not_configured" };
   }
+  if (!config.RC_WEBHOOK_TOKEN && !isDev) {
+    return { created: false, reason: "RC_WEBHOOK_TOKEN is not set, so inbound webhooks would be refused" };
+  }
+  // The secret travels in the header only; an older setup put it in ?token=.
+  const address = new URL(config.RC_WEBHOOK_URL);
+  address.searchParams.delete("token");
   const token = await getAccessToken();
   const res = await fetch(`${SERVER}/restapi/v1.0/subscription`, {
     method: "POST",
@@ -146,7 +156,11 @@ export async function ensureInboundSubscription(): Promise<{ created: boolean; r
         // Outbound delivery-status changes (Sent → Delivered / DeliveryFailed).
         "/restapi/v1.0/account/~/extension/~/message-store?type=SMS&direction=Outbound",
       ],
-      deliveryMode: { transportType: "WebHook", address: config.RC_WEBHOOK_URL },
+      deliveryMode: {
+        transportType: "WebHook",
+        address: address.toString(),
+        ...(config.RC_WEBHOOK_TOKEN ? { verificationToken: config.RC_WEBHOOK_TOKEN } : {}),
+      },
       expiresIn: 604800, // 7 days; renew via a scheduled job in production
     }),
   });
