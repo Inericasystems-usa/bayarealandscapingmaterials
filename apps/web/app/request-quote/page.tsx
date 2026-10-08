@@ -51,7 +51,6 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
 
   const addr = COMPANY.address;
   const addressLine = `${addr.street}, ${addr.city}, ${addr.state} ${addr.postalCode}`;
-  const weekday = COMPANY.hours[0];
 
   return (
     <PageShell>
@@ -132,7 +131,11 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
                     <div className="flex items-center gap-3">
                       <Clock className="h-5 w-5 text-[var(--color-text-brand)]" />
                       <span className="text-[var(--color-text-secondary)]">
-                        {weekday.label}: {weekday.value}
+                        {COMPANY.hours.map((h) => (
+                          <span key={h.label} className="block">
+                            {h.label}: {h.value}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   </div>

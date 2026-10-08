@@ -62,7 +62,8 @@ const CONTACT_ITEMS: Array<{
   {
     icon: Clock,
     title: "Hours",
-    value: `${COMPANY.hours[0].label}: ${COMPANY.hours[0].value}`,
+    // One line per row of COMPANY.hours.
+    value: COMPANY.hours.map((h) => `${h.label}: ${h.value}`).join("\n"),
     href: null,
   },
 ];
@@ -118,12 +119,8 @@ export default function ContactPage() {
                       {value}
                     </TrackedLink>
                   ) : (
-                    <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                    <p className="mt-2 whitespace-pre-line text-sm text-[var(--color-text-secondary)]">
                       {value}
-                      <br />
-                      {COMPANY.hours[1].label}: {COMPANY.hours[1].value}
-                      <br />
-                      {COMPANY.hours[2].label}: {COMPANY.hours[2].value}
                     </p>
                   )}
                 </CardContent>
@@ -190,8 +187,7 @@ export default function ContactPage() {
                     {FULL_ADDRESS}
                   </div>
                   <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                    {COMPANY.hours[0].label} {COMPANY.hours[0].value} · {COMPANY.hours[1].label}{" "}
-                    {COMPANY.hours[1].value}
+                    {COMPANY.hours.map((h) => `${h.label} ${h.value}`).join(" · ")}
                   </div>
                 </div>
               </div>

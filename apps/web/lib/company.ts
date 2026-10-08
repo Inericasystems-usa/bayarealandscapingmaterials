@@ -21,10 +21,10 @@ export const COMPANY = {
   phoneE164: "+15108604461",
   email: "info@bayarealandscapingmaterials.com",
 
+  // `label` is the short form for lists; `fullLabel` reads in a sentence.
   hours: [
-    { label: "Mon – Fri", value: "7:00 AM – 5:00 PM" },
-    { label: "Saturday", value: "9:00 AM – 3:30 PM" },
-    { label: "Sunday", value: "9:00 AM – 3:30 PM" },
+    { label: "Mon – Fri", fullLabel: "Monday–Friday", value: "7:00 AM – 5:00 PM" },
+    { label: "Sat – Sun", fullLabel: "Saturday–Sunday", value: "9:00 AM – 3:30 PM" },
   ],
 
   /**

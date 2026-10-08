@@ -15,10 +15,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/faq" },
 };
 
-const weekdayHours =
-  COMPANY.hours.find((h) => h.label === "Mon – Fri")?.value ?? "";
-const saturdayHours =
-  COMPANY.hours.find((h) => h.label === "Saturday")?.value ?? "";
+// "Monday–Friday 7:00 AM – 5:00 PM and Saturday–Sunday 9:00 AM – 3:30 PM"
+const yardHours = COMPANY.hours.map((h) => `${h.fullLabel} ${h.value}`).join(" and ");
 const yardAddress = `${COMPANY.address.street}, ${COMPANY.address.city}, ${COMPANY.address.state} ${COMPANY.address.postalCode}`;
 
 const faqs = [
@@ -44,7 +42,7 @@ const faqs = [
   },
   {
     q: "Can I pick up materials from your yard?",
-    a: `Absolutely! Our yard at ${yardAddress} is open Monday-Friday ${weekdayHours} and Saturday ${saturdayHours}. We can load materials directly into your truck or trailer.`,
+    a: `Absolutely! Our yard at ${yardAddress} is open ${yardHours}. We can load materials directly into your truck or trailer.`,
   },
   {
     q: "Do you offer bulk pricing discounts?",
