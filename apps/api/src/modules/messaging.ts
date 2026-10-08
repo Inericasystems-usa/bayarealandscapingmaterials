@@ -103,7 +103,7 @@ export const CONSENT_DISCLOSURE =
 
 /** Has this number given (and not revoked) SMS consent? */
 async function isConsented(e164: string): Promise<boolean> {
-  const c = await consents.findBy((x) => x.phone === e164 && x.status === "opted_in");
+  const c = await consents.findOne({ phone: e164, status: "opted_in" });
   return Boolean(c);
 }
 
@@ -139,7 +139,7 @@ export async function recordWebSmsConsent(input: {
   // opted out. Record the consent for the audit trail and leave the opt-out
   // standing — the auto-send gate checks both, so the number stays suppressed
   // until the owner texts START or a manager clears it.
-  const suppressed = Boolean(await optOuts.findBy((o) => o.phone === e164));
+  const suppressed = Boolean(await optOuts.findOne({ phone: e164 }));
   const note = suppressed
     ? `${input.note ?? ""} — NOTE: number has a standing opt-out (STOP); still suppressed.`.trim()
     : (input.note ?? "");
@@ -157,7 +157,7 @@ export async function recordWebSmsConsent(input: {
     revokedAt: null,
   };
 
-  const existing = await consents.findBy((c) => c.phone === e164);
+  const existing = await consents.findOne({ phone: e164 });
   if (existing) await consents.update(existing.id, fields);
   else await consents.insert({ id: newId("cns"), ...fields });
   return e164;
@@ -248,8 +248,11 @@ export async function executeBroadcast(
 /** Run any scheduled broadcasts whose time has arrived. */
 export async function runDueScheduledBroadcasts(log?: (m: string) => void): Promise<void> {
   const now = Date.now();
-  const due = await scheduledBroadcasts.filter(
-    (b) => b.status === "pending" && new Date(b.scheduledFor).getTime() <= now,
+  // Pending ones in the database; the time check stays in JavaScript because
+  // scheduledFor keeps the client's precision (with or without milliseconds),
+  // which doesn't always compare correctly as a string.
+  const due = (await scheduledBroadcasts.where({ status: "pending" })).filter(
+    (b) => new Date(b.scheduledFor).getTime() <= now,
   );
   for (const b of due) {
     log?.(`messaging: executing scheduled broadcast ${b.id} → ${b.recipients.length} recipient(s)`);
@@ -294,7 +297,7 @@ const DEFAULT_TEMPLATES: Omit<MessageTemplate, keyof Entity>[] = [
 /** Seed default templates once. */
 export async function ensureTemplates(): Promise<void> {
   for (const t of DEFAULT_TEMPLATES) {
-    const existing = await templates.findBy((x) => x.key === t.key);
+    const existing = await templates.findOne({ key: t.key });
     if (!existing) await templates.insert({ id: newId("tpl"), ...t });
   }
 }
@@ -304,7 +307,7 @@ function render(body: string, vars: Record<string, string>): string {
 }
 
 async function isOptedOut(e164: string): Promise<boolean> {
-  return Boolean(await optOuts.findBy((o) => o.phone === e164));
+  return Boolean(await optOuts.findOne({ phone: e164 }));
 }
 
 interface FireContext {
@@ -325,7 +328,7 @@ async function fireTrigger(
   log?: (msg: string) => void,
 ): Promise<void> {
   try {
-    const tpl = await templates.findBy((t) => t.key === key);
+    const tpl = await templates.findOne({ key });
     if (!tpl || !tpl.enabled) return;
 
     const e164 = toE164(rawPhone);
@@ -377,7 +380,7 @@ async function fireTrigger(
           from: FROM_LABEL(),
           customerId: ctx.customerId ?? null,
           customerName: ctx.customerName ?? vars.customer ?? "",
-          body: render((await templates.findBy((t) => t.key === key))?.body ?? "", vars),
+          body: render((await templates.findOne({ key }))?.body ?? "", vars),
           status: "Failed",
           providerId: null,
           trigger: key,
@@ -433,11 +436,12 @@ export function registerMessagingSubscribers(log?: (msg: string) => void): void 
  * one follow-up text. Idempotent: we check the message log before sending.
  */
 export async function runLeadFollowupSweep(log?: (msg: string) => void): Promise<void> {
-  const tpl = await templates.findBy((t) => t.key === "lead.followup");
+  const tpl = await templates.findOne({ key: "lead.followup" });
   if (!tpl || !tpl.enabled) return;
   const cutoff = Date.now() - tpl.delayMinutes * 60_000;
 
-  const leads = await listLeads();
+  // Only leads old enough to follow up (receivedAt is always toISOString()).
+  const leads = await listLeads({ receivedBefore: new Date(cutoff).toISOString() });
   for (const lead of leads) {
     const phoneRaw = String((lead.payload as Record<string, unknown>).phone ?? "");
     const e164 = toE164(phoneRaw);
@@ -445,7 +449,7 @@ export async function runLeadFollowupSweep(log?: (msg: string) => void): Promise
     if (new Date(lead.receivedAt).getTime() > cutoff) continue; // too fresh
 
     // Already messaged this number? (any direction) → skip; they're "contacted".
-    const prior = await messages.findBy((m) => m.threadKey === e164);
+    const prior = await messages.findOne({ threadKey: e164 });
     if (prior) continue;
     if (await isOptedOut(e164)) continue;
 
@@ -456,7 +460,7 @@ export async function runLeadFollowupSweep(log?: (msg: string) => void): Promise
 
 /** Apply an outbound delivery-status update to the matching message (by RC id). */
 async function applyOutboundStatus(providerId: string, status: string, log?: (m: string) => void): Promise<void> {
-  const m = await messages.findBy((x) => x.providerId === providerId);
+  const m = await messages.findOne({ providerId });
   if (!m || m.status === status) return;
   await messages.update(m.id, { status, error: isFailedStatus(status) ? status : m.error });
   log?.(`messaging: delivery status ${providerId} → ${status}`);
@@ -474,9 +478,11 @@ export async function reconcileOutboundStatuses(log?: (msg: string) => void): Pr
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const byId = new Map((await fetchOutboundStatuses(since)).map((s) => [s.id, s.messageStatus]));
       if (byId.size === 0) return;
-      const pending = await messages.filter(
-        (m) => m.direction === "out" && m.providerId !== null && !FINAL_STATUSES.includes(m.status),
-      );
+      const pending = await messages.where({
+        direction: "out",
+        providerId: { $ne: null },
+        status: { $nin: FINAL_STATUSES },
+      });
       for (const m of pending) {
         const st = byId.get(m.providerId as string);
         if (st) await applyOutboundStatus(m.providerId as string, st, log);
@@ -487,13 +493,12 @@ export async function reconcileOutboundStatuses(log?: (msg: string) => void): Pr
   } else {
     // Simulated: advance pending sims to Delivered after ~8s.
     const cutoff = Date.now() - 8000;
-    const pending = await messages.filter(
-      (m) =>
-        m.direction === "out" &&
-        m.simulated &&
-        (m.status === "Sent" || m.status === "Queued") &&
-        new Date(m.createdAt).getTime() < cutoff,
-    );
+    const pending = await messages.where({
+      direction: "out",
+      simulated: true,
+      status: { $in: ["Sent", "Queued"] },
+      createdAt: { $lt: new Date(cutoff).toISOString() },
+    });
     for (const m of pending) await messages.update(m.id, { status: "Delivered" });
   }
 }
@@ -557,17 +562,17 @@ async function handleInbound(fromRaw: string, text: string, log?: (msg: string) 
   });
 
   if (STOP.includes(word)) {
-    const existing = await optOuts.findBy((o) => o.phone === e164);
+    const existing = await optOuts.findOne({ phone: e164 });
     if (!existing) await optOuts.insert({ id: newId("opt"), phone: e164, reason: "inbound STOP" });
     // Revoke any standing consent so auto-texts stop immediately.
-    const consent = await consents.findBy((c) => c.phone === e164 && c.status === "opted_in");
+    const consent = await consents.findOne({ phone: e164, status: "opted_in" });
     if (consent) await consents.update(consent.id, { status: "revoked", revokedAt: new Date().toISOString() });
     await sendAutoReply(e164, "You're unsubscribed and won't receive automated texts. Reply START to opt back in.", log);
   } else if (START.includes(word)) {
-    const existing = await optOuts.findBy((o) => o.phone === e164);
+    const existing = await optOuts.findOne({ phone: e164 });
     if (existing) await optOuts.remove(existing.id);
     // Replying START is an affirmative opt-in — record/re-instate consent via SMS.
-    const consent = await consents.findBy((c) => c.phone === e164);
+    const consent = await consents.findOne({ phone: e164 });
     if (consent) await consents.update(consent.id, { status: "opted_in", channel: "sms", revokedAt: null });
     else
       await consents.insert({
@@ -632,6 +637,7 @@ router.get("/status", async (req, res) => {
 // Threads — one row per conversation, newest first.
 router.get("/threads", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
+  // Every message, grouped into threads in memory (the screen lists them all).
   const all = await messages.all();
   const byThread = new Map<string, Message[]>();
   for (const m of all) {
@@ -639,7 +645,7 @@ router.get("/threads", async (req, res) => {
     arr.push(m);
     byThread.set(m.threadKey, arr);
   }
-  const opted = new Set((await optOuts.all()).map((o) => o.phone));
+  const opted = new Set(await optOuts.distinct("phone"));
   const threads = [...byThread.entries()].map(([phone, msgs]) => {
     msgs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const last = msgs[msgs.length - 1]!;
@@ -664,11 +670,9 @@ router.get("/threads/:phone", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
   const { phone } = req.params as { phone: string };
   const e164 = toE164(phone) ?? phone;
-  const msgs = (await messages.filter((m) => m.threadKey === e164)).sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt),
-  );
+  const msgs = await messages.where({ threadKey: e164 }, { sort: { createdAt: 1, id: 1 } });
   for (const m of msgs) if (m.direction === "in" && !m.read) await messages.update(m.id, { read: true });
-  const optedOut = Boolean(await optOuts.findBy((o) => o.phone === e164));
+  const optedOut = Boolean(await optOuts.findOne({ phone: e164 }));
   const consented = await isConsented(e164);
   return res.json({ data: { phone: e164, optedOut, consented, messages: msgs } });
 });
@@ -782,7 +786,7 @@ router.post("/broadcasts/schedule", async (req, res) => {
 
 router.get("/broadcasts/scheduled", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
-  const list = (await scheduledBroadcasts.all()).sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
+  const list = await scheduledBroadcasts.where({}, { sort: { scheduledFor: 1, id: 1 } }); // every broadcast
   return res.json({ data: list });
 });
 
@@ -801,7 +805,7 @@ router.delete("/broadcasts/scheduled/:id", async (req, res) => {
 router.get("/templates", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
   await ensureTemplates();
-  const list = (await templates.all()).sort((a, b) => a.key.localeCompare(b.key));
+  const list = await templates.where({}, { sort: { key: 1 } }); // every template
   return res.json({ data: list });
 });
 
@@ -812,7 +816,7 @@ router.patch("/templates/:key", async (req, res) => {
     .object({ body: z.string().min(1).max(1000).optional(), enabled: z.boolean().optional(), delayMinutes: z.number().int().min(0).max(10080).optional() })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
-  const tpl = await templates.findBy((t) => t.key === key);
+  const tpl = await templates.findOne({ key });
   if (!tpl) return res.status(404).json({ error: { code: "not_found", message: "Template not found" } });
   const updated = await templates.update(tpl.id, parsed.data);
   return res.json({ data: updated });
@@ -821,7 +825,7 @@ router.patch("/templates/:key", async (req, res) => {
 // Opt-out list.
 router.get("/optouts", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
-  return res.json({ data: (await optOuts.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+  return res.json({ data: await optOuts.where({}, { sort: { createdAt: -1, id: -1 } }) }); // every opt-out
 });
 
 router.post("/optouts", async (req, res) => {
@@ -830,7 +834,7 @@ router.post("/optouts", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
   const e164 = toE164(parsed.data.phone);
   if (!e164) return res.status(400).json({ error: { code: "invalid", message: "Unusable phone number." } });
-  const existing = await optOuts.findBy((o) => o.phone === e164);
+  const existing = await optOuts.findOne({ phone: e164 });
   if (existing) return res.json({ data: existing });
   const created = await optOuts.insert({ id: newId("opt"), phone: e164, reason: parsed.data.reason });
   return res.status(201).json({ data: created });
@@ -840,7 +844,7 @@ router.delete("/optouts/:phone", async (req, res) => {
   if (!(await requireManager(req, res))) return;
   const { phone } = req.params as { phone: string };
   const e164 = toE164(phone) ?? phone;
-  const existing = await optOuts.findBy((o) => o.phone === e164);
+  const existing = await optOuts.findOne({ phone: e164 });
   if (!existing) return res.status(404).json({ error: { code: "not_found", message: "Not opted out" } });
   await optOuts.remove(existing.id);
   return res.json({ data: { phone: e164, deleted: true } });
@@ -855,14 +859,14 @@ router.get("/consent/disclosure", async (req, res) => {
 
 router.get("/consents", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
-  return res.json({ data: (await consents.all()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) });
+  return res.json({ data: await consents.where({}, { sort: { createdAt: -1, id: -1 } }) }); // every consent record
 });
 
 router.get("/consents/:phone", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
   const { phone } = req.params as { phone: string };
   const e164 = toE164(phone) ?? phone;
-  const c = await consents.findBy((x) => x.phone === e164);
+  const c = await consents.findOne({ phone: e164 });
   return res.json({ data: c ?? null });
 });
 
@@ -887,7 +891,7 @@ router.post("/consents", async (req, res) => {
   if (!e164) return res.status(400).json({ error: { code: "invalid", message: "Unusable phone number." } });
 
   // Recording fresh consent overrides a previous opt-out.
-  const opt = await optOuts.findBy((o) => o.phone === e164);
+  const opt = await optOuts.findOne({ phone: e164 });
   if (opt) await optOuts.remove(opt.id);
 
   const fields = {
@@ -902,7 +906,7 @@ router.post("/consents", async (req, res) => {
     note: parsed.data.note ?? "",
     revokedAt: null,
   };
-  const existing = await consents.findBy((c) => c.phone === e164);
+  const existing = await consents.findOne({ phone: e164 });
   const saved = existing
     ? await consents.update(existing.id, fields)
     : await consents.insert({ id: newId("cns"), ...fields });
@@ -914,10 +918,10 @@ router.delete("/consents/:phone", async (req, res) => {
   if (!(await requireManager(req, res))) return;
   const { phone } = req.params as { phone: string };
   const e164 = toE164(phone) ?? phone;
-  const c = await consents.findBy((x) => x.phone === e164);
+  const c = await consents.findOne({ phone: e164 });
   if (!c) return res.status(404).json({ error: { code: "not_found", message: "No consent on file" } });
   await consents.update(c.id, { status: "revoked", revokedAt: new Date().toISOString() });
-  const opt = await optOuts.findBy((o) => o.phone === e164);
+  const opt = await optOuts.findOne({ phone: e164 });
   if (!opt) await optOuts.insert({ id: newId("opt"), phone: e164, reason: "consent revoked" });
   return res.json({ data: { phone: e164, revoked: true } });
 });

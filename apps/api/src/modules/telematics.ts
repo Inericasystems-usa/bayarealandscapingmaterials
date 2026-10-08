@@ -19,9 +19,8 @@ async function pollProvider(log: (msg: string) => void): Promise<void> {
   try {
     const positions = await fetchFleetPositions();
     if (positions.length === 0) return;
-    const all = await trucks.all();
     for (const p of positions) {
-      const truck = all.find((t) => t.deviceId === p.deviceId) ?? all.find((t) => t.id === p.deviceId);
+      const truck = (await trucks.findOne({ deviceId: p.deviceId })) ?? (await trucks.find(p.deviceId));
       if (!truck) continue;
       await trucks.update(truck.id, {
         lat: p.lat,
@@ -37,7 +36,7 @@ async function pollProvider(log: (msg: string) => void): Promise<void> {
 }
 
 async function simulateWalk(): Promise<void> {
-  const onRoute = await trucks.filter((t) => t.status === "on_route");
+  const onRoute = await trucks.where({ status: "on_route" });
   for (const t of onRoute) {
     await trucks.update(t.id, {
       lat: round6(t.lat + (Math.random() - 0.5) * STEP),

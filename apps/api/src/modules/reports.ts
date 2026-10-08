@@ -233,7 +233,7 @@ router.get("/summary", async (req, res) => {
 
 // Inventory valuation — qty on hand × last unit cost.
 router.get("/inventory-valuation", async (_req, res) => {
-  const inv = await inventory.all();
+  const inv = await inventory.all(); // valuation covers every stock row
   const items = inv
     .map((i) => ({
       productId: i.productId,
@@ -259,7 +259,8 @@ router.get("/ar-aging", async (_req, res) => {
   // Only account orders are candidates — fetch just those (indexed), then narrow
   // to open ones in memory. Avoids scanning the whole ledger.
   const open = (await orders.query({ where: { paymentMethod: "account" } })).filter((o) => o.status !== "void" && o.due > 0);
-  const nameById = new Map((await customers.all()).map((c) => [c.id, c.name]));
+  const ids = [...new Set(open.map((o) => o.customerId).filter((id): id is string => Boolean(id)))];
+  const nameById = new Map((await customers.where({ id: { $in: ids } })).map((c) => [c.id, c.name]));
   const now = Date.now();
   type Bucket = "current" | "d31_60" | "d61_90" | "d90plus";
   const bucketOf = (iso: string): Bucket => {

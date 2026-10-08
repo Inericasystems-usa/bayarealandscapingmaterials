@@ -17,9 +17,7 @@ export const notifications = new Collection<Notification>("notifications");
 async function push(n: Omit<Notification, keyof Entity | "read">): Promise<void> {
   // De-dupe unread low-stock alerts for the same product.
   if (n.type === "low_stock" && n.refId) {
-    const dup = await notifications.findBy(
-      (x) => x.type === "low_stock" && x.refId === n.refId && !x.read,
-    );
+    const dup = await notifications.findOne({ type: "low_stock", refId: n.refId, read: { $ne: true } });
     if (dup) return;
   }
   await notifications.insert({ id: newId("ntf"), read: false, ...n });
@@ -50,10 +48,9 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   const { unread } = req.query as Record<string, string | undefined>;
-  let list = await notifications.all();
-  if (unread === "true") list = list.filter((n) => !n.read);
-  list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const unreadCount = (await notifications.filter((n) => !n.read)).length;
+  const unreadOnly = { read: { $ne: true } };
+  const list = await notifications.where(unread === "true" ? unreadOnly : {}, { sort: { createdAt: -1, id: -1 } });
+  const unreadCount = await notifications.count(unreadOnly);
   return res.json({ data: list, unreadCount });
 });
 
@@ -65,7 +62,7 @@ router.post("/:id/read", async (req, res) => {
 });
 
 router.post("/read-all", async (_req, res) => {
-  const list = await notifications.filter((n) => !n.read);
+  const list = await notifications.where({ read: { $ne: true } });
   for (const n of list) await notifications.update(n.id, { read: true });
   return res.json({ data: { marked: list.length } });
 });

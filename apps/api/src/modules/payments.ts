@@ -81,8 +81,7 @@ router.use((req, res, next) => {
   next();
 });
 router.get("/", async (_req, res) => {
-  const list = await payments.all();
-  list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const list = await payments.where({}, { sort: { createdAt: -1, id: -1 } }); // the whole ledger, newest first
   return res.json({ data: list });
 });
 

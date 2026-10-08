@@ -119,9 +119,10 @@ router.use(guardWrites("dispatch"));
 
 router.get("/", async (req, res) => {
   const { status, driverId } = req.query as { status?: string; driverId?: string };
-  let list = await deliveries.all();
-  if (status) list = list.filter((d) => d.status === status);
-  if (driverId) list = list.filter((d) => d.driverId === driverId);
+  const where: Record<string, string> = {};
+  if (status) where.status = status;
+  if (driverId) where.driverId = driverId;
+  const list = await deliveries.where(where);
   return res.json({ data: list });
 });
 

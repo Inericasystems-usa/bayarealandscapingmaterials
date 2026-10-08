@@ -43,9 +43,7 @@ const router = Router();
 router.use(guardWrites("purchasing"));
 router.get("/", async (req, res) => {
     const { status } = req.query as Record<string, string | undefined>;
-    let list = await purchaseOrders.all();
-    if (status) list = list.filter((p) => p.status === status);
-    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const list = await purchaseOrders.where(status ? { status } : {}, { sort: { createdAt: -1, id: -1 } });
     return res.json({ data: list.map((po) => ({ ...po, total: total(po) })) });
   });
 
@@ -116,7 +114,7 @@ router.get("/", async (req, res) => {
         await adjustStock(line.productId, line.qty);
         // Capture last cost for COGS + inventory valuation.
         if (line.unitCost > 0) {
-          const item = await inventory.findBy((i) => i.productId === line.productId);
+          const item = await inventory.findOne({ productId: line.productId });
           if (item) await inventory.update(item.id, { cost: line.unitCost });
         }
       }

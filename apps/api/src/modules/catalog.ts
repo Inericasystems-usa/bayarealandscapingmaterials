@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Collection, newId, type Entity } from "../lib/store.js";
+import { Collection, newId, type Entity, type Where } from "../lib/store.js";
 import { guardWrites } from "../lib/auth.js";
 import { bus } from "../lib/events.js";
 import { recordAudit } from "./audit.js";
@@ -49,10 +49,12 @@ const stripWholesale = (p: Product): Product => {
 router.get("/", async (req, res) => {
   const { category, q, active } = req.query as Record<string, string | undefined>;
   const isOperator = Boolean(await getAuthUser(req));
-  let list = await products.all();
+  const where: Where = {};
   // Public callers always get active-only, regardless of ?active=all.
-  if (active !== "all" || !isOperator) list = list.filter((p) => p.active);
-  if (category) list = list.filter((p) => p.category === category);
+  if (active !== "all" || !isOperator) where.active = true;
+  if (category) where.category = category;
+  let list = await products.where(where);
+  // Free-text search: a substring match across three fields, in memory.
   if (q) {
     const needle = q.toLowerCase();
     list = list.filter(
@@ -66,8 +68,7 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/categories", async (_req, res) => {
-  const list = await products.all();
-  return res.json({ data: [...new Set(list.map((p) => p.category))] });
+  return res.json({ data: await products.distinct("category") });
 });
 
 router.get("/:id", async (req, res) => {

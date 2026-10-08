@@ -34,6 +34,8 @@ const router = Router();
 router.use(guardWrites("vendors"));
 router.get("/", async (req, res) => {
   const { q } = req.query as Record<string, string | undefined>;
+  // Every vendor; the search is a case-insensitive substring match across two
+  // fields, done in memory over this short list.
   let list = await vendors.all();
   if (q) {
     const needle = q.toLowerCase();

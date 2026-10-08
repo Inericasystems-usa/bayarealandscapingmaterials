@@ -88,8 +88,9 @@ export async function appendLead(lead: LeadInput): Promise<void> {
   });
 }
 
-export async function listLeads(): Promise<StoredLead[]> {
-  return leads.all();
+/** Every lead, oldest first; `receivedBefore` keeps those received up to then. */
+export async function listLeads(opts: { receivedBefore?: string } = {}): Promise<StoredLead[]> {
+  return leads.where(opts.receivedBefore ? { receivedAt: { $lte: opts.receivedBefore } } : {});
 }
 
 /**

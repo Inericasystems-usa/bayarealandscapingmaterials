@@ -30,7 +30,7 @@ function isLow(item: InventoryItem): boolean {
  * and by purchase-order receiving. Crossing the reorder point emits inventory.low.
  */
 export async function adjustStock(productId: string, delta: number): Promise<InventoryItem | null> {
-  const item = await inventory.findBy((i) => i.productId === productId);
+  const item = await inventory.findOne({ productId });
   if (!item) return null;
   const before = item.qtyOnHand;
   // Round to 2dp so fractional cubic-yard sales don't accrue float noise.
@@ -67,14 +67,16 @@ router.use(guardWrites("inventory"));
 // List — ?lowStock=true for items at/under reorder point.
 router.get("/", async (req, res) => {
   const { lowStock } = req.query as Record<string, string | undefined>;
-  let list = await inventory.all();
-  if (lowStock === "true") list = list.filter(isLow);
+  const list =
+    lowStock === "true"
+      ? await inventory.where({ $expr: { $lte: ["$qtyOnHand", "$reorderPoint"] } }) // isLow, in the database
+      : await inventory.all(); // the stock screen lists every row
   return res.json({ data: list.map((i) => ({ ...i, low: isLow(i) })) });
 });
 
 router.get("/:productId", async (req, res) => {
   const { productId } = req.params as { productId: string };
-  const item = await inventory.findBy((i) => i.productId === productId);
+  const item = await inventory.findOne({ productId });
   if (!item) return res.status(404).json({ error: { code: "not_found", message: "No stock row" } });
   return res.json({ data: { ...item, low: isLow(item) } });
 });
@@ -94,7 +96,7 @@ router.patch("/:productId", async (req, res) => {
     })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
-  const item = await inventory.findBy((i) => i.productId === productId);
+  const item = await inventory.findOne({ productId });
   if (!item) return res.status(404).json({ error: { code: "not_found", message: "No stock row" } });
   const updated = await inventory.update(item.id, parsed.data);
   if (updated) bus.emit("inventory.changed", { productId, qtyOnHand: updated.qtyOnHand, reorderPoint: updated.reorderPoint });
@@ -114,7 +116,7 @@ router.post("/:productId/adjust", async (req, res) => {
 // Ensure a stock row exists for a product (called after creating a product).
 router.post("/ensure/:productId", async (req, res) => {
   const { productId } = req.params as { productId: string };
-  const existing = await inventory.findBy((i) => i.productId === productId);
+  const existing = await inventory.findOne({ productId });
   if (existing) return res.json({ data: existing });
   const product = await products.find(productId);
   if (!product) return res.status(404).json({ error: { code: "not_found", message: "Product not found" } });

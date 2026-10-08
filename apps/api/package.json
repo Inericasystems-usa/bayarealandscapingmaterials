@@ -11,7 +11,9 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "clean": "rimraf dist .turbo"
+    "clean": "rimraf dist .turbo",
+    "migrate:uploads": "node --import tsx src/scripts/migrate-uploads.ts",
+    "encrypt:fields": "node --import tsx src/scripts/encrypt-fields.ts"
   },
   "dependencies": {
     "@balm/lib-domain": "workspace:*",

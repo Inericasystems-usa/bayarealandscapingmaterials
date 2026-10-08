@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Collection, newId, type Entity } from "../lib/store.js";
+import { Collection, newId, startsWith, type Entity, type Where } from "../lib/store.js";
 import { getAuthUser } from "./users.js";
 
 /**
@@ -66,16 +66,16 @@ const router = Router();
 router.get("/active", async (req, res) => {
   const { userId } = req.query as { userId?: string };
   if (!userId) return res.json({ data: null });
-  const open = await shifts.findBy((s) => s.userId === userId && s.status === "open");
+  const open = await shifts.findOne({ userId, status: "open" });
   return res.json({ data: open });
 });
 
 router.get("/", async (req, res) => {
   const { userId, date } = req.query as { userId?: string; date?: string };
-  let list = await shifts.all();
-  if (userId) list = list.filter((s) => s.userId === userId);
-  if (date) list = list.filter((s) => s.clockIn.slice(0, 10) === date);
-  list.sort((a, b) => b.clockIn.localeCompare(a.clockIn));
+  const where: Where = {};
+  if (userId) where.userId = userId;
+  if (date) where.clockIn = startsWith(String(date).slice(0, 10)); // ISO date prefix, as clockIn.slice(0, 10) === date
+  const list = await shifts.where(where, { sort: { clockIn: -1, id: -1 } });
   return res.json({ data: list });
 });
 
@@ -83,7 +83,7 @@ router.post("/clock-in", async (req, res) => {
   // You can only clock yourself in — userId comes from the session, not the body.
   const me = await getAuthUser(req);
   if (!me) return res.status(401).json({ error: { code: "unauthorized", message: "Not signed in." } });
-  const existing = await shifts.findBy((s) => s.userId === me.id && s.status === "open");
+  const existing = await shifts.findOne({ userId: me.id, status: "open" });
   if (existing) return res.status(409).json({ error: { code: "already_open", message: "Already clocked in." }, data: existing });
   const shift = await shifts.insert({
     id: newId("shift"),

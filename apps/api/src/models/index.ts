@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, type mongo } from "mongoose";
 import { defineModel } from "./base.js";
 
 /**
@@ -61,7 +61,10 @@ defineModel(
     subtotal: Number, discount: Number, taxRate: Number, tax: Number, total: Number,
     paymentMethod: String, paid: Boolean, due: Number, registerSessionId: String,
   },
-  [{ status: 1 }, { customerId: 1 }, { type: 1 }, { clientId: 1 }, { paymentMethod: 1 }],
+  [
+    { status: 1 }, { customerId: 1 }, { type: 1 }, { clientId: 1 }, { paymentMethod: 1 },
+    { number: 1 }, { registerSessionId: 1 }, { customerId: 1, paymentMethod: 1 },
+  ],
 );
 
 defineModel("sales", {
@@ -105,7 +108,7 @@ defineModel(
     driverId: String, driverName: String, lat: Number, lng: Number, speed: Number,
     heading: Number, deviceId: String, lastSeen: String, notes: String,
   },
-  [{ status: 1 }],
+  [{ status: 1 }, { deviceId: 1 }],
 );
 
 defineModel("drivers", { name: String, phone: String, license: String, status: String, notes: String }, [{ status: 1 }]);
@@ -127,14 +130,17 @@ defineModel(
     name: String, email: String, role: String, phone: String,
     pinHash: String, passwordHash: String, active: Boolean, permissions: M,
   },
-  [{ email: 1 }],
+  // E-mails are stored trimmed and lower-cased (normalizeEmail in modules/users.ts).
+  [[{ email: 1 }, { unique: true }], { role: 1 }],
 );
 
-// Sessions keep only a hash of the token (modules/users.ts).
+// Sessions keep only a hash of the token (modules/users.ts). `expireAt` is the
+// moment the session ends (the earlier of its absolute and idle limits), a BSON
+// Date so MongoDB's TTL monitor deletes it; sign-in refuses it before then.
 defineModel(
   "sessions",
-  { tokenHash: String, userId: String, expiresAt: String, lastSeenAt: String },
-  [{ tokenHash: 1 }, { userId: 1 }],
+  { tokenHash: String, userId: String, expiresAt: String, lastSeenAt: String, expireAt: Date },
+  [{ tokenHash: 1 }, { userId: 1 }, [{ expireAt: 1 }, { expireAfterSeconds: 0 }]],
 );
 
 // Sign-in attempts per account (keyed by a hash of the address) and any lockout.
@@ -148,7 +154,7 @@ defineModel(
     accountSales: Number, orderCount: Number, expectedCash: Number, countedCash: Number,
     variance: Number, note: String,
   },
-  [{ status: 1 }, { userId: 1 }],
+  [{ status: 1 }, { userId: 1 }, { workstationId: 1, status: 1 }],
 );
 
 defineModel(
@@ -157,7 +163,7 @@ defineModel(
     userId: String, userName: String, clockIn: String, clockOut: String, breaks: [M],
     status: String, spanMinutes: Number, paidBreakMinutes: Number, unpaidBreakMinutes: Number, paidMinutes: Number,
   },
-  [{ userId: 1 }, { status: 1 }],
+  [{ userId: 1 }, { status: 1 }, { clockIn: 1 }],
 );
 
 // ── Messaging ─────────────────────────────────────────────────────────
@@ -168,7 +174,7 @@ defineModel(
     customerName: String, body: String, status: String, providerId: String, trigger: String,
     simulated: Boolean, read: Boolean, error: String,
   },
-  [{ threadKey: 1 }, { providerId: 1 }, { status: 1 }],
+  [{ threadKey: 1 }, { providerId: 1 }, { status: 1 }, { direction: 1, status: 1 }],
 );
 
 defineModel("message_templates", { key: String, label: String, body: String, enabled: Boolean, delayMinutes: Number }, [{ key: 1 }]);
@@ -194,7 +200,7 @@ defineModel(
 );
 
 // ── Misc: notifications, leads, audit, settings, uploads ──────────────
-defineModel("notifications", { type: String, title: String, body: String, refId: String, read: Boolean }, [{ read: 1 }, { type: 1 }]);
+defineModel("notifications", { type: String, title: String, body: String, refId: String, read: Boolean }, [{ read: 1 }, { type: 1 }, { refId: 1 }]);
 
 // Attribution + conversion-matching fields are declared TOP-LEVEL (not inside
 // `payload`) so they can be indexed and queried by the offline-conversion export.
@@ -221,8 +227,10 @@ defineModel(
   },
   [
     { type: 1 },
+    { receivedAt: 1 },
     { gclid: 1 },
     { phone_sha256: 1 },
+    { email_sha256: 1 },
     // The offline export's exact query: has revenue, not yet uploaded.
     { invoiced_value: 1, conversion_uploaded_at: 1 },
   ],
@@ -240,9 +248,58 @@ defineModel("settings", {
   currency: String, logoUrl: String, receiptFooter: String, loyalty: M, website: M, onboardingComplete: Boolean,
 });
 
-defineModel("uploads", { contentType: String, base64: String });
+// Image bytes live in the "uploads" GridFS bucket under the same id
+// (modules/uploads.ts). `base64` is only on rows stored before that, until they
+// are first read or migrated.
+defineModel("uploads", { contentType: String, length: Number, base64: String });
 
-/** Build all declared indexes. Called once from initDb() after connecting. */
-export async function syncAllIndexes(): Promise<void> {
-  await Promise.all(Object.values(mongoose.models).map((m) => m.syncIndexes().catch(() => undefined)));
+const indexName = (fields: Record<string, unknown>): string =>
+  Object.entries(fields).map(([k, v]) => `${k}_${String(v)}`).join("_");
+
+/**
+ * Build all declared indexes and drop the ones no longer declared. Called once
+ * from initDb() after connecting. An index that can't be built (a unique index
+ * over existing duplicates, say) doesn't stop the API: it is reported by
+ * collection and index name, the rest are still built, and a unique index that
+ * failed is built without `unique` so its lookups stay indexed. Fix the data and
+ * restart to get the unique one. Returns the warnings.
+ */
+export async function syncAllIndexes(warn: (msg: string) => void = (m) => console.warn(m)): Promise<string[]> {
+  const warnings: string[] = [];
+  const report = (msg: string) => {
+    warnings.push(msg);
+    warn(msg);
+  };
+  const why = (err: unknown) => {
+    // The server's message for a duplicate key quotes the duplicate value (an
+    // e-mail, say), so only its name goes in the log.
+    const e = err as { codeName?: string; code?: number; message?: string };
+    return e.codeName ?? (e.code !== undefined ? `code ${e.code}` : (e.message ?? String(err)));
+  };
+  await Promise.all(
+    Object.values(mongoose.models).map(async (m) => {
+      const coll = m.collection.collectionName;
+      try {
+        await m.cleanIndexes();
+      } catch (err) {
+        report(`⚠️  ${coll}: could not drop outdated indexes (${why(err)})`);
+      }
+      for (const [defined, declared] of m.schema.indexes()) {
+        const fields = defined as Record<string, 1 | -1>;
+        const options = declared as mongo.CreateIndexesOptions;
+        const name = indexName(fields);
+        try {
+          await m.collection.createIndex(fields, { ...options, name });
+        } catch (err) {
+          const dupes = (err as { code?: number }).code === 11000 ? "; the collection holds duplicate values" : "";
+          report(`⚠️  ${coll}: index ${name}${options.unique ? " (unique)" : ""} was not built (${why(err)}${dupes})`);
+          if (options.unique) {
+            const { unique: _u, ...plain } = options;
+            await m.collection.createIndex(fields, { ...plain, name }).catch(() => undefined);
+          }
+        }
+      }
+    }),
+  );
+  return warnings;
 }

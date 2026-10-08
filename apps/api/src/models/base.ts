@@ -37,16 +37,22 @@ const SCHEMA_OPTS = { versionKey: false, minimize: false, strict: true } as cons
  * secondary indexes. Idempotent — returns the existing model if already defined
  * (so hot-reload / repeated imports don't throw OverwriteModelError).
  */
+export type IndexSpec = Record<string, 1 | -1>;
+export type IndexDef = IndexSpec | [IndexSpec, { unique?: boolean; expireAfterSeconds?: number }];
+
 export function defineModel(
   name: string,
   fields: FieldDefs,
-  indexes: Array<Record<string, 1 | -1>> = [],
+  indexes: IndexDef[] = [],
 ): Model<FieldDefs> {
   const existing = mongoose.models[name];
   if (existing) return existing as unknown as Model<FieldDefs>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const schema = new Schema<FieldDefs>({ ...BASE_FIELDS, ...fields } as any, { collection: name, ...SCHEMA_OPTS });
-  for (const idx of indexes) schema.index(idx);
+  for (const idx of indexes) {
+    if (Array.isArray(idx)) schema.index(idx[0], idx[1]);
+    else schema.index(idx);
+  }
   // 3rd arg pins the exact collection name (no Mongoose auto-pluralization).
   return mongoose.model<FieldDefs>(name, schema, name);
 }

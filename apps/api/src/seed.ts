@@ -5,7 +5,7 @@ import { inventory, type InventoryItem } from "./modules/inventory.js";
 import { vendors, type Vendor } from "./modules/vendors.js";
 import { trucks, drivers, type Truck, type Driver } from "./modules/fleet.js";
 import { deliveries, type Delivery } from "./modules/deliveries.js";
-import { users, passwordSchema, type User } from "./modules/users.js";
+import { users, passwordSchema, normalizeEmail, type User } from "./modules/users.js";
 import { customers, encryptCustomer, type Customer } from "./modules/customers.js";
 import { orders, type Order } from "./modules/orders.js";
 import { getSettings } from "./modules/settings.js";
@@ -163,7 +163,7 @@ export async function seedData(log: (msg: string) => void): Promise<void> {
   const userRows: User[] = userSeed.map((u, i) => ({
     id: `usr_seed${i + 1}`,
     name: u.name,
-    email: u.email,
+    email: normalizeEmail(u.email),
     role: u.role,
     phone: u.phone,
     pinHash: hashPassword(u.pin),

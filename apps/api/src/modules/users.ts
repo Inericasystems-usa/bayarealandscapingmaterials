@@ -42,6 +42,10 @@ interface Session extends Entity {
   userId: string;
   expiresAt: string; // ISO — sessions are valid for SESSION_TTL_MS from login
   lastSeenAt: string; // ISO — last authenticated request, written at most once a minute
+  // When the session ends (the earlier of expiresAt and lastSeenAt + IDLE_MS),
+  // as a Date for MongoDB's TTL index. The TTL monitor runs about once a
+  // minute, so userForToken checks the limits itself as well.
+  expireAt?: Date;
 }
 
 // Absolute session lifetime. A POS shift fits comfortably; staff re-login daily.
@@ -59,8 +63,13 @@ const publicUser = (u: User): PublicUser => {
   return rest;
 };
 
-const findSession = async (token: string): Promise<Session | null> =>
-  (await sessions.query({ where: { tokenHash: hashToken(token) } }))[0] ?? null;
+/** How e-mails are stored and compared: trimmed and lower-cased. */
+export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const findSession = async (token: string): Promise<Session | null> => sessions.findOne({ tokenHash: hashToken(token) });
+
+const sessionEnd = (expiresAt: string, lastSeenAt: string): Date =>
+  new Date(Math.min(Date.parse(expiresAt), Date.parse(lastSeenAt) + IDLE_MS));
 
 // A session is over once past its absolute expiry or idle for IDLE_MS.
 const sessionOver = (s: Session, now: number): boolean =>
@@ -83,8 +92,10 @@ export async function userForToken(
     await sessions.remove(session.id);
     return null;
   }
-  if (touch && now - Date.parse(session.lastSeenAt ?? session.createdAt) > TOUCH_MS)
-    await sessions.update(session.id, { lastSeenAt: new Date(now).toISOString() });
+  if (touch && now - Date.parse(session.lastSeenAt ?? session.createdAt) > TOUCH_MS) {
+    const lastSeenAt = new Date(now).toISOString();
+    await sessions.update(session.id, { lastSeenAt, expireAt: sessionEnd(session.expiresAt, lastSeenAt) });
+  }
   const user = await users.find(session.userId);
   return user && user.active ? user : null;
 }
@@ -107,10 +118,41 @@ export async function getAuthUser(req: Request): Promise<User | null> {
 
 /** Delete sessions that can't be used any more, including any stored before tokens were hashed. */
 export async function purgeStaleSessions(): Promise<number> {
-  const now = Date.now();
-  const stale = await sessions.filter((s) => !s.tokenHash || sessionOver(s, now));
-  for (const s of stale) await sessions.remove(s.id);
-  return stale.length;
+  const now = new Date().toISOString();
+  const idleSince = new Date(Date.now() - IDLE_MS).toISOString();
+  return sessions.removeWhere({
+    $or: [
+      { tokenHash: { $in: [null, ""] } },
+      { expiresAt: { $lte: now } },
+      { lastSeenAt: { $lte: idleSince } },
+      { lastSeenAt: { $in: [null, ""] }, createdAt: { $lte: idleSince } },
+    ],
+  });
+}
+
+/**
+ * Store every e-mail the way sign-in compares it. Accounts saved before e-mails
+ * were normalised everywhere (the seeded admin took ADMIN_EMAIL as typed) would
+ * otherwise no longer match. Two accounts that differ only in case can't both
+ * be normalised under the unique index: those are reported, by account id, for
+ * the owner to merge. Returns how many were changed.
+ */
+export async function normalizeUserEmails(warn: (msg: string) => void = (m) => console.warn(m)): Promise<number> {
+  const odd = await users.where({
+    email: { $type: "string" },
+    $expr: { $ne: ["$email", { $toLower: { $trim: { input: "$email" } } }] },
+  });
+  let changed = 0;
+  for (const u of odd) {
+    try {
+      await users.update(u.id, { email: normalizeEmail(u.email) });
+      changed++;
+    } catch (err) {
+      if ((err as { code?: number }).code !== 11000) throw err;
+      warn(`⚠️  users: account ${u.id} has the same e-mail as another account apart from case; merge them in POS > Employees`);
+    }
+  }
+  return changed;
 }
 
 // New and changed passwords: at least 12 characters, letters and digits (PCI DSS 8.3.6).
@@ -194,7 +236,7 @@ authRoutes.post(
   async (req, res) => {
     const parsed = z.object({ email: z.string(), password: z.string() }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
-    const id = parsed.data.email.trim().toLowerCase();
+    const id = normalizeEmail(parsed.data.email);
     const failKey = hashToken(id);
     const locked = { error: { code: "locked", message: "Too many attempts. Try again in 30 minutes." } };
     if (lockedNow(await loginFailures.find(failKey))) return res.status(429).json(locked);
@@ -206,7 +248,7 @@ authRoutes.post(
       await lock(failKey, n);
       return res.status(429).json(locked);
     }
-    const user = await users.findBy((u) => u.email.toLowerCase() === id);
+    const user = await users.findOne({ email: id });
     // The account password, or the quick PIN where PIN sign-in is allowed (both stored hashed).
     const ok = user && user.active && credentialsMatch(user, parsed.data.password);
     if (!user || !ok) {
@@ -216,12 +258,14 @@ authRoutes.post(
     await loginFailures.bump(failKey, { max: { base: n } }); // a success starts a fresh window
     const token = newToken();
     const now = new Date();
+    const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
     await sessions.insert({
       id: newId("sess"),
       tokenHash: hashToken(token),
       userId: user.id,
-      expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
+      expiresAt,
       lastSeenAt: now.toISOString(),
+      expireAt: sessionEnd(expiresAt, now.toISOString()),
     });
     // HttpOnly cookie = the token never has to live in JS-readable storage.
     res.cookie(SESSION_COOKIE, token, sessionCookieOpts());
@@ -263,8 +307,7 @@ const LAST_ADMIN: Refusal = {
   message: "This is the last active admin account. Add or reactivate another admin first.",
 };
 const isActiveAdmin = (u: { role: Role; active: boolean }): boolean => u.role === "admin" && u.active;
-const activeAdmins = async (): Promise<number> =>
-  (await users.query({ where: { role: "admin" } })).filter((u) => u.active).length;
+const activeAdmins = async (): Promise<number> => users.count({ role: "admin", active: true });
 
 /** Applies `patch` to `target` on behalf of `me`, or returns why it's refused (a 409). */
 async function changeUser(me: User, target: User, patch: Partial<User>): Promise<{ user: User | null } | { refused: Refusal }> {
@@ -290,7 +333,7 @@ usersRoutes.get("/", async (req, res) => {
   // The list exposes each user's quick-login PIN — managers/admins only.
   if (me.role !== "admin" && me.role !== "manager")
     return res.status(403).json({ error: { code: "forbidden", message: "Admins only." } });
-  const list = await users.all();
+  const list = await users.all(); // the Employees screen lists every account
   return res.json({ data: list.map(publicUser) });
 });
 
@@ -304,12 +347,14 @@ usersRoutes.post("/", async (req, res) => {
   // admin account and take over the store.
   if (parsed.data.role === "admin" && me.role !== "admin")
     return res.status(403).json({ error: { code: "forbidden", message: "Only an admin can create an admin account." } });
-  const dupe = await users.findBy((u) => u.email.toLowerCase() === parsed.data.email.toLowerCase());
+  const email = normalizeEmail(parsed.data.email);
+  // The unique index on users.email backs this check up against a parallel create.
+  const dupe = await users.findOne({ email });
   if (dupe) return res.status(409).json({ error: { code: "exists", message: "Email already in use." } });
   const created = await users.insert({
     id: newId("usr"),
     name: parsed.data.name,
-    email: parsed.data.email.toLowerCase(),
+    email,
     role: parsed.data.role,
     phone: parsed.data.phone,
     pinHash: hashPassword(parsed.data.pin),

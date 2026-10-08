@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Collection, newId, type Entity } from "../lib/store.js";
+import { Collection, newId, startsWith, type Entity } from "../lib/store.js";
 import { adjustStock, inventory } from "./inventory.js";
 import { getSettings } from "./settings.js";
 import { customers } from "./customers.js";
@@ -76,8 +76,8 @@ const lineSchema = z.object({
 
 async function nextNumber(): Promise<string> {
   const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const todays = (await orders.all()).filter((o) => o.number.startsWith(`ORD-${ymd}`));
-  return `ORD-${ymd}-${String(todays.length + 1).padStart(4, "0")}`;
+  const todays = await orders.count({ number: startsWith(`ORD-${ymd}`) });
+  return `ORD-${ymd}-${String(todays + 1).padStart(4, "0")}`;
 }
 
 const router = Router();
@@ -95,12 +95,12 @@ router.get("/", async (req, res) => {
       const page = await orders.page({ limit: n, cursor: cursor ?? null, order: "desc", where });
       return res.json({ data: page.items, nextCursor: page.nextCursor });
     }
-    // Legacy: return the whole filtered set (backward compatible).
-    let list = await orders.all();
-    if (type) list = list.filter((o) => o.type === type);
-    if (status) list = list.filter((o) => o.status === status);
-    if (customerId) list = list.filter((o) => o.customerId === customerId);
-    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    // Legacy: return the whole filtered set (backward compatible), newest first.
+    const where: Record<string, string> = {};
+    if (type) where.type = type;
+    if (status) where.status = status;
+    if (customerId) where.customerId = customerId;
+    const list = await orders.where(where, { sort: { createdAt: -1, id: -1 } });
     return res.json({ data: list });
   });
 
@@ -134,7 +134,7 @@ router.get("/", async (req, res) => {
     // Idempotency: an offline sale replayed after reconnect carries its clientId.
     // If we've already recorded it, return the existing order instead of duping.
     if (parsed.data.clientId) {
-      const existing = await orders.findBy((o) => o.clientId === parsed.data.clientId);
+      const existing = await orders.findOne({ clientId: parsed.data.clientId });
       if (existing) return res.status(200).json({ data: existing });
     }
 
@@ -142,7 +142,7 @@ router.get("/", async (req, res) => {
     // Guard against overselling for stock-moving orders.
     if (moves) {
       for (const line of parsed.data.lines) {
-        const stock = await inventory.findBy((i) => i.productId === line.productId);
+        const stock = await inventory.findOne({ productId: line.productId });
         if (stock && stock.qtyOnHand < line.qty)
           return res.status(409).json({ error: { code: "insufficient_stock", message: `Only ${stock.qtyOnHand} ${stock.unit} of ${line.name} on hand` } });
       }

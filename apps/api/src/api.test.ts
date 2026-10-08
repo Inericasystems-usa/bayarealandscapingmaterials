@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // NODE_ENV=test keeps every production control on (only "development" relaxes them).
 process.env.NODE_ENV = "test";
 process.env.TELEMATICS_INGEST_TOKEN = "test-tele-token";
-process.env.DATA_ENCRYPTION_KEY = "test-data-encryption-key"; // exercise at-rest encryption
+process.env.DATA_ENCRYPTION_KEY = "test-data-encryption-key-0123456789abcdef"; // exercise at-rest encryption
 process.env.RC_WEBHOOK_TOKEN = "test-rc-verification-token";
 // The seed has no built-in logins: the suite's admin and demo staff come from here.
 const ADMIN = "admin@balm.local";
@@ -630,7 +630,8 @@ describe("session cookies", () => {
     const run = (nodeEnv: string | undefined) =>
       new Promise<{ status: number; cookies: string[] }>((resolve, reject) => {
         // VITEST keeps the process from listening; NODE_ENV is the variable under test.
-        const env: NodeJS.ProcessEnv = { ...process.env, VITEST: "1", MONGODB_URL: mongod.getUri() };
+        // The suite's server is standalone, which production accepts only when told.
+        const env: NodeJS.ProcessEnv = { ...process.env, VITEST: "1", MONGODB_URL: mongod.getUri(), MONGODB_ALLOW_STANDALONE: "true" };
         delete env.SEED_DEMO;
         if (nodeEnv) env.NODE_ENV = nodeEnv;
         else delete env.NODE_ENV;
@@ -1149,5 +1150,209 @@ describe("customer display socket", () => {
     } finally {
       await stop();
     }
+  });
+});
+
+describe("sessions in the database", () => {
+  const rawSessions = async () => (await import("mongoose")).default.connection.db!.collection("sessions");
+
+  it("carry an expireAt date (the earlier of the absolute and idle limits) that activity moves", async () => {
+    const { hashToken } = await import("./lib/crypto.js");
+    const { sessions } = await import("./modules/users.js");
+    const token = (await login(ADMIN, ADMIN_PW))!;
+    const doc = (await (await rawSessions()).findOne({ tokenHash: hashToken(token) }))!;
+    expect(doc.expireAt).toBeInstanceOf(Date); // a BSON date, which the TTL index needs
+    expect((doc.expireAt as Date).getTime()).toBe(Date.parse(doc.lastSeenAt as string) + 15 * 60_000);
+
+    await sessions.update(doc.id as string, { lastSeenAt: new Date(Date.now() - 5 * 60_000).toISOString() });
+    expect((await authed("GET", "/api/v1/auth/me", token)).statusCode).toBe(200);
+    const after = (await (await rawSessions()).findOne({ id: doc.id }))!;
+    expect((after.expireAt as Date).getTime()).toBeGreaterThan(Date.now() + 14 * 60_000);
+  });
+
+  it("are refused past their absolute limit even before MongoDB removes them", async () => {
+    const { hashToken } = await import("./lib/crypto.js");
+    const { sessions } = await import("./modules/users.js");
+    const token = (await login(ADMIN, ADMIN_PW))!;
+    const s = (await sessions.findOne({ tokenHash: hashToken(token) }))!;
+    // expireAt is left in the future, as if the TTL monitor hadn't run yet.
+    await sessions.update(s.id, { expiresAt: new Date(Date.now() - 1000).toISOString() });
+    expect((await authed("GET", "/api/v1/auth/me", token)).statusCode).toBe(401);
+    expect(await sessions.find(s.id)).toBeNull();
+  });
+
+  it("past either limit are purged at start, live ones stay", async () => {
+    const { sessions, purgeStaleSessions } = await import("./modules/users.js");
+    const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+    const live = (await login(ADMIN, ADMIN_PW))!;
+    await sessions.insert({ id: "sess_old", tokenHash: "h-old", userId: "usr_seed1", expiresAt: ago(1), lastSeenAt: ago(2) } as never);
+    await sessions.insert({ id: "sess_idle", tokenHash: "h-idle", userId: "usr_seed1", expiresAt: ago(-60), lastSeenAt: ago(20) } as never);
+    expect(await purgeStaleSessions()).toBeGreaterThanOrEqual(2);
+    expect(await sessions.find("sess_old")).toBeNull();
+    expect(await sessions.find("sess_idle")).toBeNull();
+    expect((await authed("GET", "/api/v1/auth/me", live)).statusCode).toBe(200);
+  });
+});
+
+describe("e-mail addresses", () => {
+  it("sign in whatever the case and spacing", async () => {
+    expect(await login(`  ${ADMIN.toUpperCase()} `, ADMIN_PW)).not.toBeNull();
+  });
+
+  it("are stored in lower case and can't be used twice, whatever the case", async () => {
+    const t = await login(ADMIN, ADMIN_PW);
+    const pw = "case-test-pass-2468";
+    const created = await authed("POST", "/api/v1/users", t, { name: "Case Test", email: "Case.Test@Example.com", role: "cashier", pin: "4321", password: pw });
+    expect(created.statusCode).toBe(201);
+    expect((created.json().data as { email: string }).email).toBe("case.test@example.com");
+    expect(await login("CASE.TEST@example.COM", pw)).not.toBeNull();
+    const again = await authed("POST", "/api/v1/users", t, { name: "Case Again", email: "case.TEST@example.com", role: "cashier", pin: "4321", password: pw });
+    expect(again.statusCode).toBe(409);
+    // The unique index refuses a duplicate that skips the check.
+    const { users } = await import("./modules/users.js");
+    const dupe = { id: "usr_dupe", name: "Dupe", email: "case.test@example.com", role: "cashier", phone: "", pinHash: "!", passwordHash: "!", active: true, permissions: null };
+    await expect(users.insert(dupe as never)).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it("saved in mixed case before are normalised, so sign-in finds them", async () => {
+    const { users, normalizeUserEmails } = await import("./modules/users.js");
+    const { hashPassword } = await import("./lib/crypto.js");
+    const pw = "legacy-mixed-pass-1357";
+    const legacy = { id: "usr_mixed", name: "Legacy", email: " Legacy.Mixed@Example.COM", role: "manager", phone: "", pinHash: "!", passwordHash: hashPassword(pw), active: true, permissions: null };
+    await users.insert(legacy as never);
+    expect(await login("legacy.mixed@example.com", pw)).toBeNull();
+    expect(await normalizeUserEmails()).toBe(1);
+    expect((await users.find("usr_mixed"))?.email).toBe("legacy.mixed@example.com");
+    expect(await login("Legacy.Mixed@example.com", pw)).not.toBeNull();
+    expect(await normalizeUserEmails()).toBe(0);
+  });
+});
+
+describe("image uploads in GridFS", () => {
+  const PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  const PNG = Buffer.from(PNG_B64, "base64");
+  const db = async () => (await import("mongoose")).default.connection.db!;
+  const fileOf = async (id: string) => (await db()).collection("uploads.files").findOne({ _id: id as never });
+  const rowOf = async (id: string) => (await db()).collection("uploads").findOne({ id });
+  const getBytes = async (url: string) => {
+    const res = await request(app)
+      .get(url)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+    return { status: res.status, type: res.headers["content-type"], body: res.body as Buffer };
+  };
+  const legacyRow = async (id: string) => {
+    const { Collection } = await import("./lib/store.js");
+    const uploads = new Collection<{ id: string; createdAt: string; updatedAt: string; contentType: string; base64: string }>("uploads");
+    await uploads.insert({ id, contentType: "image/png", base64: PNG_B64 });
+  };
+
+  it("keep the bytes out of the row and serve them unchanged", async () => {
+    const t = await login(ADMIN, ADMIN_PW);
+    const up = await authed("POST", "/api/v1/uploads", t, { data: `data:image/png;base64,${PNG_B64}` });
+    expect(up.statusCode).toBe(201);
+    const url = (up.json().data as { url: string }).url;
+    const id = url.split("/").pop()!;
+    const row = (await rowOf(id))!;
+    expect(row.base64).toBeUndefined();
+    expect(row.length).toBe(PNG.length);
+    expect((await fileOf(id))?.length).toBe(PNG.length);
+    const got = await getBytes(url);
+    expect(got.status).toBe(200);
+    expect(got.type).toBe("image/png");
+    expect(got.body.equals(PNG)).toBe(true);
+  });
+
+  it("serve a row stored inline before GridFS, and move it on first read", async () => {
+    await legacyRow("img_inline1");
+    const first = await getBytes("/api/v1/uploads/img_inline1");
+    expect(first.status).toBe(200);
+    expect(first.body.equals(PNG)).toBe(true);
+    expect((await rowOf("img_inline1"))?.base64).toBeUndefined();
+    expect((await fileOf("img_inline1"))?.length).toBe(PNG.length);
+    const second = await getBytes("/api/v1/uploads/img_inline1");
+    expect(second.status).toBe(200);
+    expect(second.body.equals(PNG)).toBe(true);
+  });
+
+  it("move every inline row with the migration, which has a dry run and can run again", async () => {
+    const { migrateLegacyUploads } = await import("./modules/uploads.js");
+    const before = await migrateLegacyUploads({ dryRun: true }); // the SVG row from the test above, say
+    await legacyRow("img_inline2");
+    await legacyRow("img_inline3");
+    const dry = await migrateLegacyUploads({ dryRun: true });
+    expect(dry).toMatchObject({ legacy: before.legacy + 2, moved: 0, bytes: before.bytes + 2 * PNG.length });
+    expect((await rowOf("img_inline2"))?.base64).toBe(PNG_B64);
+    expect(await fileOf("img_inline2")).toBeNull();
+    expect(await migrateLegacyUploads()).toMatchObject({ legacy: dry.legacy, moved: dry.legacy });
+    expect((await rowOf("img_inline3"))?.base64).toBeUndefined();
+    expect((await getBytes("/api/v1/uploads/img_inline3")).body.equals(PNG)).toBe(true);
+    expect(await migrateLegacyUploads()).toMatchObject({ legacy: 0, moved: 0 });
+  });
+
+  it("delete the GridFS file with the row", async () => {
+    const t = await login(ADMIN, ADMIN_PW);
+    const url = ((await authed("POST", "/api/v1/uploads", t, { data: `data:image/png;base64,${PNG_B64}` })).json().data as { url: string }).url;
+    const id = url.split("/").pop()!;
+    expect((await inject({ method: "DELETE", url })).statusCode).toBe(401); // not public
+    expect((await authed("DELETE", url, t)).statusCode).toBe(200);
+    expect(await rowOf(id)).toBeNull();
+    expect(await fileOf(id)).toBeNull();
+    expect(await (await db()).collection("uploads.chunks").countDocuments({ files_id: id as never })).toBe(0);
+    expect((await inject({ url })).statusCode).toBe(404);
+    expect((await authed("DELETE", url, t)).statusCode).toBe(404);
+  });
+});
+
+describe("plaintext written before encryption was on", () => {
+  it("still reads, and the script encrypts it in place (dry run first, then idempotent)", async () => {
+    const { customers } = await import("./modules/customers.js");
+    const { encryptPlaintextFields } = await import("./scripts/encrypt-fields.js");
+    const t = await login("manager@balm.local", DEMO_PW);
+    const plain = { phone: "510-555-0199", email: "plain@example.com", billingAddress: "9 Plain St", deliveryAddress: "" };
+    const account = { pastDue: 0, openDebt: 0, creditLimit: 0, storeCredit: 0, loyaltyPoints: 0 };
+    await customers.insert({ id: "cust_plain", number: "CUST-9999", name: "Plain Old", type: "retail", account, portalAccess: false, notes: "", ...plain });
+    const read = async () => (await authed("GET", "/api/v1/customers/cust_plain", t)).json().data as typeof plain;
+    expect(await read()).toMatchObject(plain);
+    const found = (await authed("GET", "/api/v1/customers?q=555-0199", t)).json().data as { id: string }[];
+    expect(found.map((c) => c.id)).toContain("cust_plain");
+
+    const dry = await encryptPlaintextFields({ dryRun: true });
+    expect(dry.customers).toBeGreaterThanOrEqual(1);
+    expect(dry.customerFields).toBeGreaterThanOrEqual(3);
+    expect((await customers.find("cust_plain"))?.phone).toBe(plain.phone); // nothing written
+
+    const done = await encryptPlaintextFields();
+    expect(done).toMatchObject({ customers: dry.customers, customerFields: dry.customerFields, dryRun: false });
+    const raw = (await customers.find("cust_plain"))!;
+    for (const f of ["phone", "email", "billingAddress"] as const) expect(raw[f].startsWith("enc:v1:")).toBe(true);
+    expect(raw.deliveryAddress).toBe(""); // empty stays empty
+    expect(await read()).toMatchObject(plain);
+    expect(await encryptPlaintextFields()).toMatchObject({ customers: 0, customerFields: 0, settings: 0 });
+  });
+});
+
+describe("transaction mode", () => {
+  it("production refuses a standalone MongoDB unless that is allowed explicitly", async () => {
+    const { transactionModeProblem } = await import("./lib/db.js");
+    expect(transactionModeProblem("production", false, undefined)).toMatch(/standalone[\s\S]*replica set[\s\S]*MONGODB_ALLOW_STANDALONE=true/);
+    expect(transactionModeProblem("production", false, "false")).not.toBeNull();
+    expect(transactionModeProblem("production", false, "true")).toBeNull();
+    expect(transactionModeProblem("production", true, undefined)).toBeNull();
+    expect(transactionModeProblem("development", false, undefined)).toBeNull();
+    expect(transactionModeProblem("test", false, undefined)).toBeNull();
+  });
+
+  it("initDb refuses a production start on this suite's standalone server, and logs the mode otherwise", async () => {
+    const { initDb } = await import("./lib/db.js");
+    const log: string[] = [];
+    await expect(initDb({ nodeEnv: "production", log: (m) => log.push(m) })).rejects.toThrow(/standalone/);
+    await initDb({ nodeEnv: "production", allowStandalone: "true", log: (m) => log.push(m) });
+    await initDb({ nodeEnv: "test", log: (m) => log.push(m) });
+    expect(log).toEqual([expect.stringMatching(/transactions: OFF/), expect.stringMatching(/transactions: OFF/)]);
   });
 });

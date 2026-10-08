@@ -23,11 +23,11 @@ const clean = (arr: string[]) => [...new Set(arr.map((s) => s.trim()).filter(Boo
 async function readTaxonomy(): Promise<Taxonomy> {
   let t = await store.find(ID);
   if (!t) {
-    const cats = clean((await products.all()).map((p) => p.category));
+    const cats = clean(await products.distinct("category"));
     t = await store.insert({ id: ID, categories: cats.sort(), units: DEFAULT_UNITS });
   }
   // Always surface categories that are actually in use, even if not saved yet.
-  const used = clean((await products.all()).map((p) => p.category));
+  const used = clean(await products.distinct("category"));
   const categories = clean([...t.categories, ...used]).sort();
   return { ...t, categories };
 }

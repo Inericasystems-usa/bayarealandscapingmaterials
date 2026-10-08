@@ -30,7 +30,7 @@ export const customers = new Collection<Customer>("customers");
 // display key used across orders/reports/statements). Encrypt on write, decrypt
 // on read. Randomized ciphertext is NOT searchable, so list search decrypts into
 // memory first (see GET /).
-const PII_FIELDS = ["phone", "email", "billingAddress", "deliveryAddress"] as const;
+export const PII_FIELDS = ["phone", "email", "billingAddress", "deliveryAddress"] as const;
 function mapPii<T extends Partial<Customer>>(obj: T, fn: (v: string) => string): T {
   const out = { ...obj };
   for (const f of PII_FIELDS) {
@@ -77,9 +77,10 @@ router.use(guardAll("customers")); // customer records hold PII + account balanc
 
 router.get("/", async (req, res) => {
   const { q, type, limit, cursor } = req.query as Record<string, string | undefined>;
-  // Decrypt into memory before filtering so search still works on PII.
-  let list = (await customers.all()).map((c) => decryptCustomer(c) as Customer);
-  if (type) list = list.filter((c) => c.type === type);
+  // `type` is plain text, so it filters in the database. The search stays in
+  // memory: phone and e-mail are encrypted at rest with a random IV, so only the
+  // decrypted values can be matched.
+  let list = (await customers.where(type ? { type } : {})).map((c) => decryptCustomer(c) as Customer);
   if (q) {
     const needle = q.toLowerCase();
     list = list.filter(
@@ -152,9 +153,10 @@ router.post("/:id/payment", async (req, res) => {
   const c = await customers.find(id);
   if (!c) return res.status(404).json({ error: { code: "not_found", message: "Customer not found" } });
 
-  const open = (await orders.all())
-    .filter((o) => o.customerId === id && o.paymentMethod === "account" && o.status !== "void" && o.due > 0)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const open = await orders.where(
+    { customerId: id, paymentMethod: "account", status: { $ne: "void" }, due: { $gt: 0 } },
+    { sort: { createdAt: 1, id: 1 } },
+  );
 
   const result = await withTransaction(async () => {
     let remaining = parsed.data.amount;
@@ -213,13 +215,10 @@ router.get("/:id/statement", async (req, res) => {
   const { id } = req.params as { id: string };
   const c = await customers.find(id);
   if (!c) return res.status(404).json({ error: { code: "not_found", message: "Customer not found" } });
-  const invoices = (await orders.all())
-    .filter((o) => o.customerId === id && o.paymentMethod === "account" && o.status !== "void")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((o) => ({ id: o.id, number: o.number, date: o.createdAt, total: o.total, due: o.due, paid: o.paid }));
-  const payments = (await arPayments.all())
-    .filter((p) => p.customerId === id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const invoices = (
+    await orders.where({ customerId: id, paymentMethod: "account", status: { $ne: "void" } }, { sort: { createdAt: -1, id: -1 } })
+  ).map((o) => ({ id: o.id, number: o.number, date: o.createdAt, total: o.total, due: o.due, paid: o.paid }));
+  const payments = await arPayments.where({ customerId: id }, { sort: { createdAt: -1, id: -1 } });
   return res.json({
     data: {
       customer: { id: c.id, name: c.name, number: c.number, account: c.account },

@@ -21,7 +21,7 @@ import integrationRoutes, { syncReceiverRoutes, registerWebsiteSync, startWebsit
 import auditRoutes from "./modules/audit.js";
 import deliveriesRoutes from "./modules/deliveries.js";
 import paymentsRoutes from "./modules/payments.js";
-import { authRoutes, usersRoutes, purgeStaleSessions } from "./modules/users.js";
+import { authRoutes, usersRoutes, purgeStaleSessions, normalizeUserEmails } from "./modules/users.js";
 import timeclockRoutes from "./modules/timeclock.js";
 import settingsRoutes from "./modules/settings.js";
 import customersRoutes from "./modules/customers.js";
@@ -278,10 +278,21 @@ export function buildServer(): Express {
 async function main() {
   initSentry(); // first, so HTTP instrumentation hooks in (no-op without SENTRY_DSN)
   // The DB must exist before buildServer() runs (subscribers query on register).
-  if (isDbConfigured()) await initDb();
+  if (isDbConfigured()) {
+    try {
+      await initDb();
+    } catch (err) {
+      console.error(`❌ Refusing to start: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  }
   const app = buildServer();
   console.log(`🗄️  store: ${storeMode()}`);
   console.log(`🛰️  error tracking: ${isSentryEnabled() ? "sentry" : "off"}`);
+  if (isDbConfigured()) {
+    const n = await normalizeUserEmails();
+    if (n) console.log(`👤 stored ${n} e-mail address(es) in lower case`);
+  }
   // Sessions stored before tokens were hashed (and long-dead ones) can't be
   // used; clear them in the background so a big collection doesn't delay boot.
   void purgeStaleSessions()

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Collection, newId, type Entity } from "../lib/store.js";
+import { Collection, newId, startsWith, type Entity, type Where } from "../lib/store.js";
 import { requireRole } from "../lib/auth.js";
 
 /**
@@ -56,12 +56,14 @@ router.get("/", async (req, res) => {
   if (!requireRole(req, res, "admin", "manager")) return;
   const { action, since, q, limit, cursor } = req.query as { action?: string; since?: string; q?: string; limit?: string; cursor?: string };
   const n = Math.min(Number(limit) || 250, 1000);
-  // Free-text search + `since` are in-memory refinements (not indexable here) —
-  // scan when either is present. These are ad-hoc admin lookups, not hot paths.
+  // With a search or `since`, action and since filter in the database and the
+  // free-text search runs in memory over what's left (ad-hoc admin lookups).
   if (q || since) {
-    let list = (await auditLog.all()).sort((a, b) => b.at.localeCompare(a.at));
-    if (action) list = list.filter((e) => e.action.startsWith(action));
-    if (since) list = list.filter((e) => e.at >= since);
+    const where: Where = {};
+    if (action) where.action = startsWith(action);
+    if (since) where.at = { $gte: since };
+    let list = await auditLog.where(where, { sort: { at: -1, id: -1 } });
+    // Case-insensitive substring search over two fields, in memory.
     if (q) {
       const needle = q.toLowerCase();
       list = list.filter((e) => e.summary.toLowerCase().includes(needle) || e.userName.toLowerCase().includes(needle));

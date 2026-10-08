@@ -60,8 +60,12 @@ export const envSchema = z.object({
   // Database — MongoDB connection string (the sole persistence backend). Defaults
   // to a local standalone mongod; the platform injects the real URL in production.
   MONGODB_URL: z.string().default("mongodb://localhost:27017/balm"),
-  // Field encryption at rest — when set, sensitive fields (customer PII, the
-  // website sync token) are AES-256-GCM encrypted; otherwise stored plaintext.
+  // Production refuses a standalone mongod (no transactions) unless this is
+  // "true" (lib/db.ts). Development and tests run on one either way.
+  MONGODB_ALLOW_STANDALONE: z.enum(["true", "false"]).optional(),
+  // Field encryption at rest: sensitive fields (customer PII, the website sync
+  // token) are AES-256-GCM encrypted. Required in production (startupProblems);
+  // elsewhere, without it, they are stored as plaintext.
   DATA_ENCRYPTION_KEY: z.string().optional(),
   // Error tracking — when set, exceptions are reported to Sentry.
   SENTRY_DSN: z.string().optional(),
@@ -107,6 +111,9 @@ export const isProd = config.NODE_ENV === "production";
 export const productionHost =
   process.env.INERICA_PRODUCTION === "1" || existsSync("/etc/inerica/production");
 
+// `openssl rand -hex 32` gives 64 characters; anything this short is a placeholder.
+export const MIN_ENCRYPTION_KEY_LENGTH = 32;
+
 /** Settings the API refuses to start with. Empty when it is safe to run. */
 export function startupProblems(
   c: { NODE_ENV: string; SEED_DEMO?: string },
@@ -124,6 +131,11 @@ export function startupProblems(
     problems.push("ALLOW_PIN_LOGIN=true: PIN sign-in is for counter PCs, never for an internet-facing server");
   // The webhook refuses unsigned calls outside development, so without the
   // token inbound texts, STOP replies included, would silently stop arriving.
+  // Without the key, customer PII would be written in plaintext.
+  if (c.NODE_ENV === "production" && (env.DATA_ENCRYPTION_KEY?.trim().length ?? 0) < MIN_ENCRYPTION_KEY_LENGTH)
+    problems.push(
+      `DATA_ENCRYPTION_KEY is missing or shorter than ${MIN_ENCRYPTION_KEY_LENGTH} characters: generate one with \`openssl rand -hex 32\` (deploy/DEPLOY.md)`,
+    );
   if (env.RC_WEBHOOK_URL && !env.RC_WEBHOOK_TOKEN && c.NODE_ENV !== "development")
     problems.push("RC_WEBHOOK_URL is set without RC_WEBHOOK_TOKEN: inbound SMS (and STOP opt-outs) would be refused");
   return problems;

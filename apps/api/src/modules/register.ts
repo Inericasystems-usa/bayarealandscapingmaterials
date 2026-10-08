@@ -36,9 +36,7 @@ export const registerSessions = new Collection<RegisterSession>("register-sessio
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 async function tallies(sessionId: string) {
-  const list = (await orders.all()).filter(
-    (o) => o.registerSessionId === sessionId && o.status !== "void" && o.type !== "quote",
-  );
+  const list = await orders.where({ registerSessionId: sessionId, status: { $ne: "void" }, type: { $ne: "quote" } });
   const sum = (m: string) => round2(list.filter((o) => o.paymentMethod === m).reduce((s, o) => s + o.total, 0));
   return { cashSales: sum("cash"), cardSales: sum("card"), accountSales: sum("account"), orderCount: list.length };
 }
@@ -46,15 +44,14 @@ async function tallies(sessionId: string) {
 const router = Router();
 router.use(guardWrites("drawer"));
 router.get("/", async (_req, res) => {
-  const list = await registerSessions.all();
-  list.sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+  const list = await registerSessions.where({}, { sort: { openedAt: -1, id: -1 } }); // every drawer session, newest first
   return res.json({ data: list });
 });
 
 router.get("/active", async (req, res) => {
   const { workstationId } = req.query as { workstationId?: string };
   const ws = workstationId ?? (await getSettings()).registerWorkstationId;
-  const open = await registerSessions.findBy((s) => s.status === "open" && s.workstationId === ws);
+  const open = await registerSessions.findOne({ status: "open", workstationId: ws });
   return res.json({ data: open });
 });
 
@@ -67,7 +64,7 @@ router.post("/open", async (req, res) => {
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
   const ws = parsed.data.workstationId ?? (await getSettings()).registerWorkstationId;
-  const existing = await registerSessions.findBy((s) => s.status === "open" && s.workstationId === ws);
+  const existing = await registerSessions.findOne({ status: "open", workstationId: ws });
   if (existing) return res.status(409).json({ error: { code: "already_open", message: "A register session is already open." }, data: existing });
   const seq = (await registerSessions.count()) + 1001;
   const session = await registerSessions.insert({

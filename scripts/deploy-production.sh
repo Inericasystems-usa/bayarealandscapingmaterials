@@ -103,6 +103,15 @@ check_env_files() {
   if [ -f "$SHARED/api.env" ]; then
     grep -qx MONGODB_URL <<<"$(env_names "$SHARED/api.env")" ||
       problem "MONGODB_URL is not in $SHARED/api.env: the API would use an empty local database"
+    # The API refuses to start without a key of 32+ characters. Only the length
+    # is looked at; the value is never printed.
+    local key_len
+    key_len=$(sed -n 's/^DATA_ENCRYPTION_KEY=//p' "$SHARED/api.env" | tail -n 1 | tr -d "\"' \r" | wc -c)
+    [ "$key_len" -gt 32 ] ||
+      problem "DATA_ENCRYPTION_KEY is missing or shorter than 32 characters in $SHARED/api.env: the API would refuse to start (deploy/DEPLOY.md, section 9)"
+    if grep -Eq '^MONGODB_ALLOW_STANDALONE=.?true' "$SHARED/api.env"; then
+      warn "MONGODB_ALLOW_STANDALONE=true in $SHARED/api.env: writes are not atomic; run MongoDB as a replica set and delete the line (deploy/DEPLOY.md, section 9)"
+    fi
     # A flag, not a secret. The API refuses to start with it (INERICA_PRODUCTION in
     # ecosystem.config.cjs), so stop before the switch rather than fail it.
     if grep -Eq '^ALLOW_PIN_LOGIN=.?true' "$SHARED/api.env"; then

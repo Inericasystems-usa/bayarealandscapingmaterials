@@ -40,6 +40,7 @@ router.post("/website/sync", async (_req, res) => {
   const cfg = await getSettings();
   const website = cfg.website;
   if (!website?.url) return res.status(400).json({ error: { code: "not_configured", message: "Set the website URL first." } });
+  // A full push: the website gets the whole catalog and every stock row.
   const prods = await products.all();
   const inv = await inventory.all();
   try {
@@ -86,7 +87,7 @@ async function flushDelta(log: (m: string) => void): Promise<void> {
   clear();
 
   const prods = (await Promise.all(productIds.map((id) => products.find(id)))).filter((p): p is Product => p !== null);
-  const inv = (await Promise.all(invIds.map((pid) => inventory.findBy((x) => x.productId === pid)))).filter((i): i is InventoryItem => i !== null);
+  const inv = invIds.length ? await inventory.where({ productId: { $in: invIds } }) : [];
   if (!prods.length && !inv.length && !deletedProductIds.length) return;
 
   try {
@@ -198,14 +199,14 @@ syncReceiverRoutes.post("/catalog", async (req, res) => {
   for (const raw of parsed.data.inventory) {
     const it = raw as unknown as InventoryItem;
     if (!it.productId) continue;
-    const existing = await inventory.findBy((x) => x.productId === it.productId);
+    const existing = await inventory.findOne({ productId: it.productId });
     if (existing) await inventory.update(existing.id, it);
     else await inventory.insert(it);
     inventoryUpserted++;
   }
   let deleted = 0;
   for (const id of parsed.data.deletedProductIds) {
-    const inv = await inventory.findBy((x) => x.productId === id);
+    const inv = await inventory.findOne({ productId: id });
     if (inv) await inventory.remove(inv.id);
     if (await products.find(id)) {
       await products.remove(id);
@@ -218,12 +219,12 @@ syncReceiverRoutes.post("/catalog", async (req, res) => {
 // Pull-back sources: the POS GETs orders + leads created since ?since.
 syncReceiverRoutes.get("/orders", async (req, res) => {
   if (await badToken(req)) return res.status(401).json({ error: { code: "unauthorized", message: "Bad sync token" } });
-  const since = (req.query as { since?: string }).since ?? "";
-  return res.json({ data: (await orders.all()).filter((o) => o.createdAt > since) });
+  const since = String((req.query as { since?: string }).since ?? "");
+  return res.json({ data: await orders.where({ createdAt: { $gt: since } }) });
 });
 
 syncReceiverRoutes.get("/leads", async (req, res) => {
   if (await badToken(req)) return res.status(401).json({ error: { code: "unauthorized", message: "Bad sync token" } });
-  const since = (req.query as { since?: string }).since ?? "";
-  return res.json({ data: (await leads.all()).filter((l) => l.createdAt > since) });
+  const since = String((req.query as { since?: string }).since ?? "");
+  return res.json({ data: await leads.where({ createdAt: { $gt: since } }) });
 });

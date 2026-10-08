@@ -106,17 +106,21 @@ export async function linkOrderRevenueToLead(order: Order): Promise<string | nul
 
     // Earliest matching lead that still has a click id and no revenue yet —
     // the first touch is the one that earned the conversion.
-    const candidates = (await leads.all())
-      .filter(
-        (l) =>
-          clickIdOf(l) !== null &&
-          l.invoiced_value === undefined &&
-          !l.conversion_uploaded_at &&
-          l.createdAt <= order.createdAt &&
-          ((phoneDigest && l.phone_sha256 === phoneDigest) ||
-            (emailDigest && l.email_sha256 === emailDigest)),
+    const contact = [
+      ...(phoneDigest ? [{ phone_sha256: phoneDigest }] : []),
+      ...(emailDigest ? [{ email_sha256: emailDigest }] : []),
+    ];
+    const candidates = (
+      await leads.where(
+        {
+          $or: contact,
+          invoiced_value: { $exists: false },
+          conversion_uploaded_at: { $in: [null, ""] },
+          createdAt: { $lte: order.createdAt },
+        },
+        { sort: { createdAt: 1, id: 1 } },
       )
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    ).filter((l) => clickIdOf(l) !== null);
 
     const lead = candidates[0];
     if (!lead) return null;
@@ -164,8 +168,9 @@ export async function buildOfflineConversions(
   const from = opts.from ?? "0000-00-00";
   const to = `${opts.to ?? "9999-12-31"}T23:59:59.999Z`;
 
-  return (await leads.all())
-    .filter((l) => l.invoiced_value !== undefined && !l.conversion_uploaded_at)
+  // Revenue and not yet uploaded, in the database; the date window stays here
+  // because it falls back from invoiced_at to createdAt per lead.
+  return (await leads.where({ invoiced_value: { $exists: true }, conversion_uploaded_at: { $in: [null, ""] } }))
     .filter((l) => {
       const at = l.invoiced_at ?? l.createdAt;
       return at >= from && at <= to;

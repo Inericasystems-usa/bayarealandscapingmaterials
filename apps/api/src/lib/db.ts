@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { mongo } from "mongoose";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { config } from "../config.js";
 import { syncAllIndexes } from "../models/index.js";
@@ -35,16 +35,50 @@ export function runWithTenant<T>(tenantId: string, fn: () => T): T {
 }
 
 // Whether the connected server supports multi-document transactions (replica set
-// or mongos). Standalone mongod does not — withTransaction() degrades gracefully.
+// or mongos). Standalone mongod does not: withTransaction() then runs without
+// rollback, which production refuses (see transactionModeProblem).
 let txnSupported = false;
 
-/** Connect, register indexes, and probe transaction support. Idempotent-ish. */
-export async function initDb(): Promise<void> {
+/** Whether multi-document transactions are in use (false until initDb() runs). */
+export function transactionsSupported(): boolean {
+  return txnSupported;
+}
+
+/**
+ * Why the API must not run against this server, or null. Production needs a
+ * replica set (a single-node one is fine; MongoDB Atlas always is one): on a
+ * standalone server a sale's stock moves and order row can half-commit. Setting
+ * MONGODB_ALLOW_STANDALONE=true accepts that explicitly.
+ */
+export function transactionModeProblem(nodeEnv: string, supported: boolean, allowStandalone: string | undefined): string | null {
+  if (supported || nodeEnv !== "production" || allowStandalone === "true") return null;
+  return (
+    "MongoDB is a standalone server, so writes that belong together can't be made atomic. " +
+    "Run it as a replica set (deploy/DEPLOY.md), or set MONGODB_ALLOW_STANDALONE=true to accept non-atomic writes."
+  );
+}
+
+/**
+ * Connect, build indexes, and probe transaction support. In production a
+ * standalone server is refused (transactionModeProblem). Idempotent-ish.
+ */
+export async function initDb(
+  opts: { nodeEnv?: string; allowStandalone?: string; log?: (msg: string) => void } = {},
+): Promise<void> {
+  const { nodeEnv = config.NODE_ENV, allowStandalone = config.MONGODB_ALLOW_STANDALONE, log = (m) => console.log(m) } = opts;
   if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(config.MONGODB_URL, { serverSelectionTimeoutMS: 8000 });
+    // Indexes are built once below, where failures are reported, not on model compile.
+    await mongoose.connect(config.MONGODB_URL, { serverSelectionTimeoutMS: 8000, autoIndex: false });
   }
   await syncAllIndexes();
   txnSupported = await probeTxnSupport();
+  const problem = transactionModeProblem(nodeEnv, txnSupported, allowStandalone);
+  if (problem) throw new Error(problem);
+  log(
+    txnSupported
+      ? "🗄️  MongoDB transactions: on (replica set)"
+      : "🗄️  MongoDB transactions: OFF (standalone server, writes are not atomic)",
+  );
 }
 
 async function probeTxnSupport(): Promise<boolean> {
@@ -56,6 +90,13 @@ async function probeTxnSupport(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** The GridFS bucket holding uploaded image bytes (collections uploads.files and uploads.chunks). */
+export function uploadsBucket(): mongo.GridFSBucket {
+  const db = mongoose.connection.db;
+  if (!db) throw new Error("MongoDB is not connected");
+  return new mongo.GridFSBucket(db, { bucketName: "uploads" });
 }
 
 /** Liveness probe target for /ready. Throws if Mongo is unreachable. */
@@ -102,8 +143,8 @@ function runAfter(ctx: TxCtx): void {
 /**
  * Run `fn` atomically when the server supports transactions (replica set); every
  * store write inside then commits/rolls back together. On a standalone mongod
- * transactions aren't available, so `fn` runs directly with no rollback — the
- * documented best-effort degrade (identical to the previous JSON-store fallback).
+ * (development and tests; production only with MONGODB_ALLOW_STANDALONE=true)
+ * `fn` runs directly with no rollback.
  * Post-commit callbacks fire once `fn` completes either way.
  *
  * The transaction-support decision is made BEFORE running `fn`, so a business

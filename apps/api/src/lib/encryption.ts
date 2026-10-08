@@ -6,11 +6,12 @@ import { config } from "../config.js";
  * the website sync token). AES-256-GCM with a key derived from
  * DATA_ENCRYPTION_KEY.
  *
- * Env-gated like every other integration: with no key configured, values are
- * stored as plaintext (the zero-infra dev default) and a one-time warning is
- * logged. Decryption is back-compatible — anything without the `enc:v1:` prefix
- * is returned unchanged, so pre-existing plaintext keeps working and is upgraded
- * to ciphertext the next time it's written.
+ * Production refuses to start without a key (config.ts). Elsewhere, with no
+ * key, values are stored as plaintext and a one-time warning is logged.
+ * Decryption is back-compatible: anything without the `enc:v1:` prefix is
+ * returned unchanged, so plaintext written before the key was set keeps
+ * working; it is encrypted the next time it is written, or all at once by
+ * `pnpm --filter @balm/api encrypt:fields` (src/scripts/encrypt-fields.ts).
  *
  * Note: this is randomized (per-value IV), so it is NOT searchable at rest —
  * decrypt into memory before filtering. Do not use it for exact-match lookup
@@ -37,6 +38,11 @@ function warnOnce(): void {
     warned = true;
     console.warn("⚠️  DATA_ENCRYPTION_KEY not set — sensitive fields stored as plaintext.");
   }
+}
+
+/** True for a value already encrypted by encryptField. */
+export function isEncrypted(value: string): boolean {
+  return value.startsWith(PREFIX);
 }
 
 /** True when a data-encryption key is configured. */

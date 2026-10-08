@@ -49,8 +49,7 @@ const lineSchema = z.object({
 const router = Router();
 router.use(guardWrites("register"));
 router.get("/", async (_req, res) => {
-    const list = await sales.all();
-    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const list = await sales.where({}, { sort: { createdAt: -1, id: -1 } }); // every sale, newest first
     return res.json({ data: list });
   });
 
@@ -74,7 +73,7 @@ router.get("/", async (_req, res) => {
 
     // Guard against overselling: every line must have enough on hand.
     for (const line of parsed.data.lines) {
-      const stock = await inventory.findBy((i) => i.productId === line.productId);
+      const stock = await inventory.findOne({ productId: line.productId });
       if (!stock) return res.status(400).json({ error: { code: "no_stock_row", message: `No inventory for ${line.name}` } });
       if (stock.qtyOnHand < line.qty) {
         return res.status(409).json({

@@ -58,7 +58,7 @@ const driverSchema = z.object({
 const router = Router();
 router.use(guardWrites("dispatch"));
 // ── Trucks ─────────────────────────────────────────────────────────
-router.get("/trucks", async (_req, res) => res.json({ data: await trucks.all() }));
+router.get("/trucks", async (_req, res) => res.json({ data: await trucks.all() })); // the whole fleet
 
 router.post("/trucks", async (req, res) => {
   const parsed = truckSchema.safeParse(req.body);
@@ -117,7 +117,7 @@ router.patch("/trucks/:id/location", async (req, res) => {
 });
 
 // ── Drivers ────────────────────────────────────────────────────────
-router.get("/drivers", async (_req, res) => res.json({ data: await drivers.all() }));
+router.get("/drivers", async (_req, res) => res.json({ data: await drivers.all() })); // every driver
 
 router.post("/drivers", async (req, res) => {
   const parsed = driverSchema.safeParse(req.body);
@@ -177,11 +177,10 @@ telematicsIngestRoutes.post("/telematics", async (req, res) => {
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: parsed.error.message } });
 
-  const all = await trucks.all();
   let updated = 0;
   for (const r of parsed.data.reports) {
-    let truck = r.truckId ? all.find((t) => t.id === r.truckId) : undefined;
-    if (!truck && r.deviceId) truck = all.find((t) => t.deviceId === r.deviceId);
+    let truck = r.truckId ? await trucks.find(r.truckId) : null;
+    if (!truck && r.deviceId) truck = await trucks.findOne({ deviceId: r.deviceId });
     if (!truck) continue;
     await trucks.update(truck.id, {
       lat: r.lat,

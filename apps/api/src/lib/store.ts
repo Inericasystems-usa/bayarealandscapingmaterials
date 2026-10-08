@@ -58,6 +58,23 @@ function decodeCursor(c: string): { createdAt: string; id: string } | null {
 
 const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/**
+ * A MongoDB filter on top-level fields, run in the database (and on its
+ * indexes). Values come from code or validated input, never a raw request body:
+ * an object there would be read as a query operator.
+ */
+export type Where = Record<string, unknown>;
+export interface WhereOptions {
+  sort?: Record<string, 1 | -1>; // default: oldest first, by (createdAt, id)
+  limit?: number;
+}
+const DEFAULT_SORT: Record<string, 1 | -1> = { createdAt: 1, id: 1 };
+
+/** Filter value matching strings that start with `prefix` (uses the field's index). */
+export function startsWith(prefix: string): { $regex: string } {
+  return { $regex: `^${escapeRegex(String(prefix))}` };
+}
+
 // Fetch limit+1 rows, then split off the extra to compute the next cursor.
 function pageResult<T extends Entity>(rows: T[], limit: number): PageResult<T> {
   const hasMore = rows.length > limit;
@@ -92,10 +109,11 @@ function buildInsert<T extends Entity>(data: Omit<T, "id" | "createdAt" | "updat
 const sess = () => currentSession() ?? null;
 
 /**
- * MongoDB-backed collection. Preserves the exact interface the JSON/Postgres
- * stores exposed — including the JS-predicate `find/filter`, which load the
- * collection then filter in memory (kept for parity with callers like customer
- * search that decrypt PII before matching).
+ * MongoDB-backed collection. `findOne`, `where`, `count`, `distinct` and
+ * `removeWhere` filter in the database. `all`, `findBy` and `filter` load the
+ * whole collection and filter in JavaScript: use them only where the database
+ * can't do the matching (fields encrypted at rest, such as customer PII, or
+ * logic a filter can't express), and say why at the call site.
  */
 export class Collection<T extends Entity> {
   constructor(private readonly name: string) {}
@@ -130,6 +148,38 @@ export class Collection<T extends Entity> {
 
   async filter(pred: (x: T) => boolean): Promise<T[]> {
     return (await this.rows()).filter(pred);
+  }
+
+  /** The first row matching `where` (oldest first unless `sort` says otherwise). */
+  async findOne(where: Where, opts: { sort?: WhereOptions["sort"] } = {}): Promise<T | null> {
+    const doc = await this.model
+      .findOne(where)
+      .sort(opts.sort ?? DEFAULT_SORT)
+      .session(sess())
+      .lean();
+    return doc ? toEntity<T>(doc) : null;
+  }
+
+  /** Every row matching `where`, sorted and limited in the database. */
+  async where(where: Where, opts: WhereOptions = {}): Promise<T[]> {
+    let q = this.model
+      .find(where)
+      .sort(opts.sort ?? DEFAULT_SORT)
+      .session(sess());
+    if (opts.limit !== undefined) q = q.limit(opts.limit);
+    const docs = await q.lean();
+    return docs.map((d) => toEntity<T>(d));
+  }
+
+  /** The distinct values of `field` across the rows matching `where`. */
+  async distinct<K extends keyof T & string>(field: K, where: Where = {}): Promise<T[K][]> {
+    return (await this.model.distinct(field, where).session(sess())) as T[K][];
+  }
+
+  /** Delete every row matching `where`; returns how many went. */
+  async removeWhere(where: Where): Promise<number> {
+    const r = await this.model.deleteMany(where).session(sess());
+    return r.deletedCount ?? 0;
   }
 
   async page(q: PageQuery): Promise<PageResult<T>> {
@@ -182,14 +232,15 @@ export class Collection<T extends Entity> {
     return item;
   }
 
-  async update(id: string, patch: Partial<T>): Promise<T | null> {
+  async update(id: string, patch: Partial<T>, opts: { unset?: (keyof T & string)[] } = {}): Promise<T | null> {
     // Shallow top-level merge (parity with the previous stores): $set overrides
     // the given keys; id + updatedAt are forced. Drop undefined so a partial
-    // patch leaves unspecified fields intact.
+    // patch leaves unspecified fields intact; `unset` removes fields outright.
     const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
     const set = { ...clean, id, updatedAt: new Date().toISOString() };
+    const unset = opts.unset?.length ? { $unset: Object.fromEntries(opts.unset.map((f) => [f, ""])) } : {};
     const doc = await this.model
-      .findOneAndUpdate({ id }, { $set: set }, { new: true })
+      .findOneAndUpdate({ id }, { $set: set, ...unset }, { new: true })
       .session(sess())
       .lean();
     return doc ? toEntity<T>(doc) : null;
@@ -224,8 +275,8 @@ export class Collection<T extends Entity> {
     return (r.deletedCount ?? 0) > 0;
   }
 
-  async count(): Promise<number> {
-    return this.model.countDocuments({}).session(sess());
+  async count(where: Where = {}): Promise<number> {
+    return this.model.countDocuments(where).session(sess());
   }
 
   async seedIfEmpty(items: T[]): Promise<boolean> {

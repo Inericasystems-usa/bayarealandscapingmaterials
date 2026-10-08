@@ -172,10 +172,9 @@ In `api.env`:
   and `ALLOW_PIN_LOGIN` lines. With `ALLOW_PIN_LOGIN=true` the API refuses to
   start, and the deploy script stops before the switch.
 - Make sure `MONGODB_URL`, `DATA_ENCRYPTION_KEY` and, if inbound SMS is used,
-  `RC_WEBHOOK_TOKEN` are there. A new `DATA_ENCRYPTION_KEY`
-  (`openssl rand -hex 32`) encrypts customer fields from then on, and existing
-  plaintext rows keep working. Keep a copy of it somewhere safe, because
-  encrypted data cannot be read without it.
+  `RC_WEBHOOK_TOKEN` are there. The API refuses to start without a
+  `DATA_ENCRYPTION_KEY` of 32 or more characters, and refuses a MongoDB that is
+  not a replica set: read section 9 before the switch.
 
 ### 2.4 Build the release (the site stays up)
 
@@ -210,6 +209,9 @@ killed for lack of memory, never fall back to `next dev`.
 3. Once: `pm2 startup` and run the `sudo` command it prints, then `pm2 save`,
    so the production apps (and not the dev server) come back after a reboot.
 4. Do the end of section 1 (sessions, old logs), then the checks in section 5.
+5. Once, after the first switch: encrypt the rows written before the key was
+   set and move images out of the database (section 9.2), then set up the
+   nightly backup and do the restore drill (section 9.3).
 
 ## 3. nginx
 
@@ -326,3 +328,137 @@ so the apps move to the new one.
 
 Logs: `pm2 logs balm-web`, `pm2 logs balm-api` (files in `~/.pm2/logs/`). Add
 rotation once with `pm2 install pm2-logrotate`.
+
+## 9. Database: replica set, encryption key, backups
+
+### 9.1 MongoDB must be a replica set
+
+A sale moves stock and writes the order in one transaction, and MongoDB only
+has transactions on a replica set. On a standalone server those writes could
+half-commit, so the API refuses to start in production against one and logs
+which mode it runs in (`pm2 logs balm-api | grep 'MongoDB transactions'`).
+
+Find out what production uses (with `BALM_DB` set as in section 1):
+
+```bash
+mongosh --nodb --quiet --eval 'print(connect(process.env.BALM_DB).hello().setName ?? "standalone")'
+```
+
+- **MongoDB Atlas** is always a replica set: nothing to do.
+- **Self-hosted, standalone**: make it a single-node replica set. In
+  `/etc/mongod.conf` add
+
+  ```yaml
+  replication:
+    replSetName: rs0
+  ```
+
+  then `sudo systemctl restart mongod` and, once,
+  `mongosh --eval 'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "127.0.0.1:27017" }] })'`
+  (with `--username`/`--authenticationDatabase admin` if auth is on; a
+  replica set with auth also needs a `security.keyFile`). Add
+  `replicaSet=rs0` to the query string of `MONGODB_URL` and
+  `pm2 restart balm-api`. The command above then prints `rs0`.
+
+`MONGODB_ALLOW_STANDALONE=true` in `api.env` lets the API start on a standalone
+server anyway, with non-atomic writes. It is a stopgap: the deploy script warns
+while it is set.
+
+### 9.2 The encryption key
+
+`DATA_ENCRYPTION_KEY` encrypts customer phone numbers, e-mail and addresses and
+the website sync token. Generate it once:
+
+```bash
+openssl rand -hex 32
+```
+
+and paste it into `api.env` without echoing it anywhere else. **Losing the key
+loses that data**: the backups hold only ciphertext, so a backup without the key
+cannot be read either. Keep a copy in the owner's password manager (and a
+printed copy in the safe), never next to the database backups; a backup and its
+key in one place would also hand both to whoever takes it. Never replace the
+key once data is encrypted with it: values encrypted with the old key would no
+longer read.
+
+Rows written before the key was set read correctly as they are. To encrypt them
+now rather than when each is next edited, and to move images stored inside
+database rows into GridFS, from the live release (it reads `apps/api/.env`):
+
+```bash
+cd /var/www/bayarealandscapingmaterials.com-releases/current/apps/api
+node --import tsx src/scripts/encrypt-fields.ts --dry-run    # counts only
+node --import tsx src/scripts/encrypt-fields.ts
+node --import tsx src/scripts/migrate-uploads.ts --dry-run
+node --import tsx src/scripts/migrate-uploads.ts
+```
+
+Both can run again at any time; a second run reports 0. At start the API also
+builds its indexes, now including a unique index on `users.email`. If two
+accounts share an address it logs a warning naming the collection and index
+(`pm2 logs balm-api | grep '⚠️'`); deactivate or re-address one in POS >
+Employees and restart the API to get the unique index.
+
+### 9.3 Backups and the restore drill
+
+`scripts/backup-mongo.sh` dumps the database named in `MONGODB_URL` (read from
+`api.env`, never placed on a command line) to
+`/var/backups/balm-mongo/balm-<db>-<UTC stamp>.archive.gz`, deletes archives
+older than 30 days, copies the new one to `BACKUP_REMOTE` with rclone, and
+writes one line per run to `/var/backups/balm-mongo/backup.log`. Any failure
+exits non-zero with a `FAILED:` line. Without `BACKUP_REMOTE` it warns and keeps
+the copy on this server only, which does not survive losing the server.
+
+Once:
+
+```bash
+sudo apt-get install -y mongodb-database-tools rclone   # mongodump/mongorestore; mongosh as in section 1
+sudo install -d -m 700 -o "$(id -un)" /var/backups/balm-mongo
+rclone config                                           # a remote off this host (B2, S3, ...); keys stay in ~/.config/rclone
+# in api.env: BACKUP_REMOTE=<remote>:<bucket>/balm-mongo
+bash /var/www/bayarealandscapingmaterials.com-releases/current/scripts/backup-mongo.sh   # first run by hand
+```
+
+Then nightly, in `crontab -e` of the same user:
+
+```
+15 3 * * * bash /var/www/bayarealandscapingmaterials.com-releases/current/scripts/backup-mongo.sh >/dev/null 2>>/var/backups/balm-mongo/cron-errors.log
+```
+
+Check `tail /var/backups/balm-mongo/backup.log` every week: one `ok` line per
+night, `offhost=` naming the remote.
+
+**MongoDB Atlas:** also turn on Atlas's own backups (Cloud Backup, with
+continuous backup where the tier offers it). This script is then the copy
+outside Atlas; the server's address must be on the Atlas IP access list.
+
+**Restore drill** (now, then every three months, and after any change to the
+database setup). It restores into a new scratch database, never over production:
+
+```bash
+cd /var/www/bayarealandscapingmaterials.com-releases/current
+ls -t /var/backups/balm-mongo/*.archive.gz | head -1                 # newest archive
+# or the off-host copy: rclone copy <remote>:<bucket>/balm-mongo/<file> /tmp/
+bash scripts/restore-mongo.sh /var/backups/balm-mongo/<file>          # -> balm_restore_<stamp>
+```
+
+It prints every collection's document count in the restored copy next to the
+live database. They match except for what was written since the backup ran
+(sessions, new orders). Then spot-check the copy and drop it (`BALM_DB` set as
+in section 1):
+
+```bash
+export R=balm_restore_<stamp>
+mongosh --nodb --quiet --eval 'const d = connect(process.env.BALM_DB).getSiblingDB(process.env.R);
+  printjson({ users: d.users.countDocuments(), lastOrder: d.orders.find().sort({ createdAt: -1 }).limit(1).next()?.number,
+              images: d.getCollection("uploads.files").countDocuments() })'
+mongosh --nodb --quiet --eval 'printjson(connect(process.env.BALM_DB).getSiblingDB(process.env.R).dropDatabase())'
+```
+
+Write the date and the counts in the operations log.
+
+**A real restore** (data lost or damaged): `pm2 stop balm-api`, then
+`bash scripts/restore-mongo.sh <archive> --to-db <production db> --overwrite-production`.
+It asks you to type the database name, drops the collections the archive holds
+and restores them, then prints the counts. `pm2 start balm-api` and check
+section 5. The key in `api.env` must be the one the backup was made with.
