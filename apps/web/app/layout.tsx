@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Open_Sans, JetBrains_Mono } from "next/font/google";
+import { Montserrat, Open_Sans, JetBrains_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { COMPANY } from "@/lib/company";
 import { CONSENT_BOOT_SCRIPT } from "@/lib/consent";
@@ -8,30 +8,35 @@ import { openingHoursSpecification } from "@/lib/hours";
 import "./globals.css";
 import React from "react";
 
-// Display: Fraunces — a warm humanist variable serif (opsz/SOFT/WONK axes) that
-// scales from tight body-serif to oversized editorial display. Carries the
-// "earthy editorial" voice across every heading on the site.
-const fraunces = Fraunces({
+// The brand kit's pairing (docs/brand-assets.md): Montserrat for headings, Open
+// Sans for body. The design tokens name the families literally ("Montserrat",
+// "Open Sans", "JetBrains Mono"), and next/font registers its @font-face under
+// those names, so loading them here is what makes the tokens resolve. Before,
+// Fraunces was loaded but the tokens asked for Montserrat, which nothing
+// loaded: every heading fell back to the system font.
+//
+// Headings swap in (they carry the brand); body and mono text use `optional`,
+// so a slow first visit keeps the metric-matched fallback instead of re-wrapping
+// paragraphs mid-read (layout shift); the fonts are cached for the next page.
+const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  style: ["normal", "italic"],
-  axes: ["opsz", "SOFT", "WONK"],
 });
 
-// Body: Open Sans — a clean, quiet humanist grotesk that lets the serif lead.
 const openSans = Open_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
-  display: "swap",
+  display: "optional",
   weight: ["400", "500", "600", "700"],
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-  display: "swap",
+  display: "optional",
   weight: ["400", "500"],
+  preload: false, // only small labels use it
 });
 
 export const viewport: Viewport = {
@@ -98,7 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${openSans.variable} ${jetbrains.variable}`}
+      className={`${montserrat.variable} ${openSans.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
       <head>

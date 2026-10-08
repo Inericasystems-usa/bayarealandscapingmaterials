@@ -9,7 +9,10 @@ import { COMPANY } from "@/lib/company";
  * with no scrolling, at every breakpoint.
  *
  * Height is pinned to the viewport minus the sticky header (4rem mobile /
- * 5rem desktop) and the content is vertically centered. Server component; the
+ * 5rem desktop). The content is vertically centered on desktop and top-aligned
+ * on phones: on a slow connection the HTML arrives in pieces, and a centered
+ * hero that is still missing its photo jumps when the rest lands (layout
+ * shift); top-aligned, the late parts simply appear below. Server component; the
  * only motion is a single subtle CSS entrance, disabled under
  * prefers-reduced-motion. No parallax / word-cycle / scroll cue.
  */
@@ -27,18 +30,18 @@ const lift = "animate-[liftUp_0.7s_cubic-bezier(0.2,0,0,1)_both] motion-reduce:a
 
 export function Hero() {
   return (
-    <section className="tex-stone relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-gradient-to-b from-[var(--color-moss-100)] via-[var(--color-moss-50)] to-[var(--color-bg-page)] md:min-h-[calc(100svh-5rem)]">
+    <section className="tex-stone relative flex min-h-[calc(100svh-4rem)] items-start overflow-hidden lg:items-center bg-gradient-to-b from-[var(--color-moss-100)] via-[var(--color-moss-50)] to-[var(--color-bg-page)] md:min-h-[calc(100svh-5rem)]">
       {/* green ambient wash behind the image side */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 right-[-6rem] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,var(--color-moss-200),transparent_70%)] opacity-70 blur-2xl"
+        className="pointer-events-none absolute -top-24 right-[-6rem] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,var(--color-moss-200),transparent_70%)] opacity-70"
       />
 
       <div className="relative mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-4 px-4 py-4 sm:px-6 sm:py-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:py-10 xl:px-8">
         {/* ── Copy ─────────────────────────────────────────────── */}
         <div className="max-w-xl">
           <span
-            className={`${rise} inline-flex items-center gap-2 rounded-full border border-[var(--color-moss-200)] bg-[var(--color-bg-elevated)]/80 px-4 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--color-text-brand)] shadow-[var(--shadow-sm)] backdrop-blur`}
+            className={`${rise} inline-flex items-center gap-2 rounded-full border border-[var(--color-moss-200)] bg-[var(--color-bg-elevated)] px-4 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--color-text-brand)] shadow-[var(--shadow-sm)]`}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-moss-500)]" aria-hidden />
             Richmond, CA · Open 7 days
@@ -130,7 +133,7 @@ export function Hero() {
           {/* single grounded info card. The backing is a literal rgba (moss-950 at
               85%): an opacity modifier on a CSS-variable colour compiles to
               color-mix(), which Firefox and WebKit rendered almost transparent. */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-[var(--radius-lg)] border border-white/15 bg-[rgba(8,23,16,0.85)] px-4 py-2.5 text-white backdrop-blur-md sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-xs">
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-[var(--radius-lg)] border border-white/15 bg-[rgba(8,23,16,0.85)] px-4 py-2.5 text-white sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-xs">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15">
               <Truck className="h-4 w-4" strokeWidth={1.75} aria-hidden />
             </span>

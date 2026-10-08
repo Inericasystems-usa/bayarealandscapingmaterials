@@ -36,17 +36,23 @@ export function StickyCallBar() {
       // Keep the buttons clear of the iOS home indicator / gesture bar.
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {hours ? (
-        <p className="px-4 pt-1.5 text-center text-[0.7rem] font-medium text-[var(--color-text-muted)]">
-          <span
-            aria-hidden
-            className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${
-              hours.open ? "bg-[var(--color-moss-500)]" : "bg-[var(--color-text-muted)]"
-            }`}
-          />
-          {hours.label}
-        </p>
-      ) : null}
+      {/* The line is always there so the bar keeps its height when the label
+          fills in on mount (no layout shift); empty until then. */}
+      <p className="px-4 pt-1.5 text-center text-[0.7rem] font-medium text-[var(--color-text-muted)]">
+        {hours ? (
+          <>
+            <span
+              aria-hidden
+              className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                hours.open ? "bg-[var(--color-moss-500)]" : "bg-[var(--color-text-muted)]"
+              }`}
+            />
+            {hours.label}
+          </>
+        ) : (
+          " "
+        )}
+      </p>
 
       <div className="flex items-stretch gap-2 p-2">
         <a
