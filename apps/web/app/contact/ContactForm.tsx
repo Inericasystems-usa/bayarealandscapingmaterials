@@ -82,7 +82,6 @@ export function ContactForm() {
 
     // Genuine send failure (network / CORS / server unreachable, or a 5xx).
     // Log the real cause for diagnosis; show an honest fallback.
-    // eslint-disable-next-line no-console
     console.error(
       `Contact form: request to ${LEADS_API}/api/v1/leads/contact failed — status ${result.status}`,
     );

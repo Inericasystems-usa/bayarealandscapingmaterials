@@ -291,7 +291,6 @@ export default function CustomersPage() {
   useEffect(() => {
     if (editing?.id) void loadStatement(editing.id);
     else setStatement(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing?.id]);
 
   // Server-side filter by type/q; debounce the search box lightly.

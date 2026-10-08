@@ -17,11 +17,16 @@ const STATUS: Record<Truck["status"], { color: string; label: string }> = {
   maintenance: { color: "#d97706", label: "Maintenance" },
 };
 
+// Leaflet renders popup content as HTML; truck and driver names are typed by staff.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 function popupHtml(t: Truck): string {
   const seen = t.lastSeen ? `<br><span style="opacity:.65">seen ${new Date(t.lastSeen).toLocaleTimeString()}</span>` : "";
   const speed = t.speed ? `<br>${Math.round(t.speed)} mph` : "";
-  const driver = t.driverName ? `<br>${t.driverName}` : "";
-  return `<strong>${t.number}</strong><br>${STATUS[t.status].label}${driver}${speed}${seen}`;
+  const driver = t.driverName ? `<br>${escapeHtml(t.driverName)}` : "";
+  return `<strong>${escapeHtml(String(t.number))}</strong><br>${STATUS[t.status].label}${driver}${speed}${seen}`;
 }
 
 export function FleetMap({ trucks }: { trucks: Truck[] }) {
@@ -42,10 +47,11 @@ export function FleetMap({ trucks }: { trucks: Truck[] }) {
       .addTo(map)
       .bindTooltip("Yard", { permanent: true, direction: "top", offset: [0, -6] });
     mapRef.current = map;
+    const markers = markersRef.current;
     return () => {
       map.remove();
       mapRef.current = null;
-      markersRef.current.clear();
+      markers.clear();
       fittedRef.current = false;
     };
   }, []);

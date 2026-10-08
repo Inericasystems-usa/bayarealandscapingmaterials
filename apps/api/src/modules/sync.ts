@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { z } from "zod";
 import { guardAll } from "../lib/auth.js";
 import { safeEqual } from "../lib/crypto.js";
+import { jobs } from "../lib/jobs.js";
 import { getSettings, updateSettings } from "./settings.js";
 import { products, type Product } from "./catalog.js";
 import { inventory, type InventoryItem } from "./inventory.js";
@@ -150,22 +151,18 @@ async function pullFromWebsite(): Promise<{ orders: number; leads: number; at: s
 }
 
 /** Background poller — pulls new website orders + leads on an interval. */
-export function startWebsitePull(log: (m: string) => void): NodeJS.Timeout {
-  const timer = setInterval(() => {
-    void (async () => {
+export function startWebsitePull(log: (m: string) => void): void {
+  jobs.start({
+    name: "website-pull",
+    everyMs: 30_000,
+    run: async () => {
       const { website } = await getSettings();
       if (!website?.enabled || !website.url) return;
-      try {
-        const r = await pullFromWebsite();
-        if (r.orders || r.leads) log(`pulled ${r.orders} orders / ${r.leads} leads ← website`);
-      } catch (e) {
-        log(`pull failed: ${(e as Error).message}`);
-      }
-    })();
-  }, 30_000);
-  timer.unref?.();
+      const r = await pullFromWebsite(); // a failure is logged and retried by the runner
+      if (r.orders || r.leads) log(`pulled ${r.orders} orders / ${r.leads} leads ← website`);
+    },
+  });
   log("website pull polling every 30s");
-  return timer;
 }
 
 // ── Website receiver (reference contract) ─────────────────────────────

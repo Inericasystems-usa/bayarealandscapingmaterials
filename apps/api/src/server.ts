@@ -38,6 +38,7 @@ import { ensureInboundSubscription, ringCentralMode } from "./lib/ringcentral.js
 import { authGuard } from "./lib/auth.js";
 import { initSentry, isSentryEnabled, captureError } from "./lib/sentry.js";
 import { isDbConfigured, initDb, closeDb, storeMode, ping } from "./lib/db.js";
+import { jobs } from "./lib/jobs.js";
 import { startTelematics } from "./modules/telematics.js";
 import { startDisplayServer } from "./lib/display.js";
 import { redactPan, rejectCardNumbers } from "./lib/pan-guard.js";
@@ -213,7 +214,9 @@ export function buildServer(): Express {
     } catch {
       return res.status(503).send({ ready: false, store: storeMode(), db: "unreachable" });
     }
-    res.json({ ready: true, store: storeMode() });
+    // Job states are reported for monitoring; a failing job does not take the
+    // API out of rotation.
+    res.json({ ready: true, store: storeMode(), jobs: await jobs.health().catch(() => ({})) });
   });
 
   // API root
@@ -290,23 +293,20 @@ async function main() {
   if (config.DISPLAY_SOCKET === "on") startDisplayServer(3001, (msg) => console.log(`🖥️  ${msg}`));
   startMessagingJobs((msg) => console.log(`💬 ${msg}`));
   console.log(`💬 RingCentral SMS mode: ${ringCentralMode()}`);
-  void ensureInboundSubscription()
-    .then((r) => {
-      if (r.created) console.log("💬 RingCentral inbound SMS subscription created");
-      else if (r.reason && r.reason !== "not_configured")
-        console.warn(`💬 RingCentral subscription not created — ${r.reason}`);
-    })
-    .catch((err) => console.warn("RingCentral subscription failed", err));
-  // Renew before the 7-day expiry so inbound SMS + delivery receipts keep flowing.
-  const rcRenew = setInterval(
-    () => {
-      void ensureInboundSubscription()
-        .then((r) => r.created && console.log("💬 RingCentral subscription renewed"))
-        .catch((err) => console.warn("RingCentral renewal failed", err));
+  // Create the inbound subscription now and renew it before its 7-day expiry, so
+  // inbound SMS and delivery receipts keep flowing. A failed attempt is retried
+  // within the hour rather than a week later.
+  jobs.start({
+    name: "ringcentral-subscription",
+    everyMs: 6 * 24 * 60 * 60 * 1000,
+    runAtStart: true,
+    leaseMs: 10 * 60_000,
+    run: async () => {
+      const r = await ensureInboundSubscription();
+      if (r.created) console.log("💬 RingCentral inbound SMS subscription created or renewed");
+      else if (r.reason && r.reason !== "not_configured") throw new Error(`subscription not created — ${r.reason}`);
     },
-    6 * 24 * 60 * 60 * 1000,
-  );
-  if (rcRenew.unref) rcRenew.unref();
+  });
 
   // Loopback unless HOST says otherwise: only the reverse proxy should reach it.
   const server = app.listen(config.PORT, config.HOST, () => {
@@ -322,6 +322,8 @@ async function main() {
     console.log(`Received ${signal}, shutting down gracefully...`);
     try {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      // Hand back job leases so the next release picks the jobs up at once.
+      await jobs.stop();
       await closeDb();
       process.exit(0);
     } catch (err) {

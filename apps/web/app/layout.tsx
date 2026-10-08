@@ -59,10 +59,8 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true },
-  icons: {
-    icon: [{ url: "/favicon.ico" }],
-    apple: "/apple-touch-icon.png",
-  },
+  // The favicon itself comes from app/icon.tsx.
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 // LocalBusiness JSON-LD — emitted on every page; richer schema per page below.

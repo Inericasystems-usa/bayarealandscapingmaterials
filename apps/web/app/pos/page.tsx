@@ -410,7 +410,7 @@ export default function PosRegisterPage() {
       taxRate,
       total: Number(total.toFixed(2)),
     });
-  }, [lines, customer, subtotal, tax, total, taxRate, receipt, publishDisplay, storeName]);
+  }, [lines, customer, subtotal, discountAmount, tax, total, taxRate, receipt, publishDisplay, storeName]);
 
   const openPayment = () => {
     if (!lines.length) return;

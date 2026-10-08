@@ -1,6 +1,7 @@
 import { trucks } from "./fleet.js";
 import { config } from "../config.js";
 import { fetchFleetPositions, telematicsMode } from "../lib/telematics-provider.js";
+import { jobs } from "../lib/jobs.js";
 
 /**
  * Telematics ticker. In LIVE mode (TELEMATICS_API_URL + _API_KEY set) it polls
@@ -46,13 +47,9 @@ async function simulateWalk(): Promise<void> {
   }
 }
 
-export function startTelematics(log: (msg: string) => void): NodeJS.Timeout {
+export function startTelematics(log: (msg: string) => void): void {
   const live = telematicsMode() === "live";
   const tickMs = config.TELEMATICS_POLL_MS ?? (live ? LIVE_TICK_MS : SIM_TICK_MS);
-  const timer = setInterval(() => {
-    void (live ? pollProvider(log) : simulateWalk());
-  }, tickMs);
-  timer.unref?.(); // don't keep the process alive solely for the ticker
+  jobs.start({ name: "telematics", everyMs: tickMs, run: () => (live ? pollProvider(log) : simulateWalk()) });
   log(`telematics ${live ? "polling provider" : "simulating"} every ${tickMs / 1000}s`);
-  return timer;
 }

@@ -6,6 +6,7 @@ import { bus } from "../lib/events.js";
 import { config, isDev } from "../config.js";
 import { safeEqual } from "../lib/crypto.js";
 import { redactPan } from "../lib/pan-guard.js";
+import { jobs } from "../lib/jobs.js";
 import { getAuthUser } from "./users.js";
 import { listLeads } from "./leads/store.js";
 import {
@@ -497,21 +498,15 @@ export async function reconcileOutboundStatuses(log?: (msg: string) => void): Pr
   }
 }
 
-let sweepTimer: NodeJS.Timeout | null = null;
-let statusTimer: NodeJS.Timeout | null = null;
-/** Start the lead follow-up sweep (5 min) and the delivery-status reconcile (20 s). */
+/**
+ * Start the lead follow-up sweep (5 min), the delivery-status reconcile and the
+ * scheduled broadcasts (20 s). The runner keeps each to one instance, so a
+ * second API process never texts a lead or sends a broadcast twice.
+ */
 export function startMessagingJobs(log?: (msg: string) => void): void {
-  if (!sweepTimer) {
-    sweepTimer = setInterval(() => void runLeadFollowupSweep(log), 5 * 60_000);
-    if (sweepTimer.unref) sweepTimer.unref();
-  }
-  if (!statusTimer) {
-    statusTimer = setInterval(() => {
-      void reconcileOutboundStatuses(log);
-      void runDueScheduledBroadcasts(log);
-    }, 20_000);
-    if (statusTimer.unref) statusTimer.unref();
-  }
+  jobs.start({ name: "lead-followup", everyMs: 5 * 60_000, run: () => runLeadFollowupSweep(log) });
+  jobs.start({ name: "message-status", everyMs: 20_000, run: () => reconcileOutboundStatuses(log) });
+  jobs.start({ name: "scheduled-broadcasts", everyMs: 20_000, run: () => runDueScheduledBroadcasts(log) });
 }
 
 // ── Auth guards ───────────────────────────────────────────────────────
