@@ -46,7 +46,10 @@ export function createJobRunner(opts: { owner?: string; collection?: string; log
   const owner = opts.owner ?? `${process.pid}-${randomUUID().slice(0, 8)}`;
   const model = () => getModel(opts.collection ?? "job_runs");
   const log = opts.log ?? ((msg: string) => console.warn(msg));
-  const jobs = new Map<string, { spec: JobSpec; timer: NodeJS.Timeout | null; failures: number; startedAt: number }>();
+  const jobs = new Map<
+    string,
+    { spec: JobSpec; timer: NodeJS.Timeout | null; failures: number; startedAt: number; inflight: Promise<void> | null }
+  >();
   let stopped = false;
 
   /** Claim `name` for this instance; false when another instance holds it. */
@@ -85,7 +88,11 @@ export function createJobRunner(opts: { owner?: string; collection?: string; log
   function schedule(name: string, delayMs: number): void {
     const job = jobs.get(name);
     if (!job || stopped) return;
-    job.timer = setTimeout(() => void tick(name), delayMs);
+    job.timer = setTimeout(() => {
+      job.inflight = tick(name).finally(() => {
+        job.inflight = null;
+      });
+    }, delayMs);
     job.timer.unref?.(); // never keeps the process alive on its own
   }
 
@@ -121,13 +128,22 @@ export function createJobRunner(opts: { owner?: string; collection?: string; log
     /** Start a job; starting a name twice is a no-op. */
     start(spec: JobSpec): void {
       if (jobs.has(spec.name) || stopped) return;
-      jobs.set(spec.name, { spec, timer: null, failures: 0, startedAt: Date.now() });
+      jobs.set(spec.name, { spec, timer: null, failures: 0, startedAt: Date.now(), inflight: null });
       schedule(spec.name, spec.runAtStart ? 0 : spec.everyMs);
     },
-    /** Stop scheduling and hand back any lease this instance holds. */
+    /**
+     * Stop scheduling, let a run (or claim) already under way finish (up to
+     * 10 s), then hand back any lease this instance holds. Without the wait, a
+     * claim still in flight would land after the hand-back and keep the job
+     * locked for its whole lease.
+     */
     async stop(): Promise<void> {
       stopped = true;
       for (const job of jobs.values()) if (job.timer) clearTimeout(job.timer);
+      const inflight = [...jobs.values()].map((j) => j.inflight).filter((p): p is Promise<void> => p !== null);
+      if (inflight.length) {
+        await Promise.race([Promise.allSettled(inflight), new Promise((r) => setTimeout(r, 10_000).unref?.())]);
+      }
       const iso = new Date().toISOString();
       await model()
         .updateMany({ leaseOwner: owner, leaseUntil: { $gt: iso } }, { $set: { leaseUntil: iso, updatedAt: iso } })

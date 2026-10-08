@@ -100,8 +100,18 @@ describe("job runner", () => {
     const a = createJobRunner({ owner: "old-release", collection: "jobs_handover", log: quiet });
     const b = createJobRunner({ owner: "new-release", collection: "jobs_handover", log: quiet });
     let ranOnB = 0;
-    a.start({ name: "renew", everyMs: 60_000, runAtStart: true, leaseMs: 60 * 60_000, run: () => sleep(150) });
-    await sleep(50); // a holds the lease mid-run
+    let aRunning = false;
+    a.start({
+      name: "renew",
+      everyMs: 60_000,
+      runAtStart: true,
+      leaseMs: 60 * 60_000,
+      run: async () => {
+        aRunning = true;
+        await sleep(150);
+      },
+    });
+    while (!aRunning) await sleep(10); // a holds the lease mid-run
     await a.stop();
     b.start({ name: "renew", everyMs: 60_000, runAtStart: true, run: async () => void (ranOnB += 1) });
     await sleep(200);
