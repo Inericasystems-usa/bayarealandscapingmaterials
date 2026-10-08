@@ -203,7 +203,8 @@ export default function HomePage() {
 
       {/* ── FINAL CTA — full-bleed material ──────────────────── */}
       <section className="relative overflow-hidden bg-[var(--color-moss-950)] py-24 md:py-32">
-        <Image src={footer_img} alt="" fill sizes="100vw" className="object-cover opacity-35" />
+        {/* Faint texture under a 90% wash: low quality is invisible here and saves bytes. */}
+        <Image src={footer_img} alt="" fill sizes="100vw" quality={50} className="object-cover opacity-35" />
         {/* bold green wash — image reads as faint texture only */}
         <div className="absolute inset-0 bg-[var(--color-moss-900)]/90 mix-blend-multiply" />
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-moss-800)]/92 via-[var(--color-moss-900)]/95 to-[var(--color-moss-950)]/97" />

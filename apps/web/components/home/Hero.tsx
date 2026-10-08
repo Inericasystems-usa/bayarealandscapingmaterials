@@ -121,6 +121,7 @@ export function Hero() {
               alt="The Bay Area Landscaping Materials yard in Richmond, stocked with bulk soil, gravel, and stone"
               fill
               priority
+              fetchPriority="high"
               sizes="(min-width:1024px) 46vw, 100vw"
               className="object-cover"
             />

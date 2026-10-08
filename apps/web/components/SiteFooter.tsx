@@ -81,7 +81,8 @@ export function SiteFooter() {
           {/* Link columns */}
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <h4 className="mb-4 font-display font-bold text-white">{col.title}</h4>
+              {/* h2: the footer's own section headings (an h4 here skipped two levels). */}
+              <h2 className="mb-4 text-base font-display font-bold text-white">{col.title}</h2>
               <ul className="space-y-2.5 text-sm">
                 {col.links.map((link) => (
                   <li key={link.label}>

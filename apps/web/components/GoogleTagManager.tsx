@@ -34,8 +34,11 @@ export function GoogleTagManager() {
   if (!GTM_ID) return null;
   // gtag() exists only once the consent defaults are set; without them the
   // container would run unconfigured, so it does not load at all.
+  // lazyOnload: the container (~0.5 MB with its Google libraries) loads after
+  // the page has finished loading, off the critical path. Consent defaults and
+  // any queued dataLayer events are already in place, so nothing is lost.
   return (
-    <Script id="gtm-loader" strategy="afterInteractive">{`
+    <Script id="gtm-loader" strategy="lazyOnload">{`
 (function(w,d,s,l,i){if(typeof w.gtag!=='function')return;
 w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
 var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
