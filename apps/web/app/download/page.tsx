@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Monitor, Smartphone, Download, ShieldCheck, Cpu, ArrowRight } from "lucide-react";
 import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
@@ -75,10 +74,12 @@ export default function DownloadPage() {
             </p>
             <div className="mt-5 space-y-3">
               <PwaInstall />
-              <Link href="/pos" className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-text-brand)] hover:underline">
+              {/* A plain link on purpose: the POS needs a full page load to get its
+                  own security policy and none of this page's tags. */}
+              <a href="/pos" className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-text-brand)] hover:underline">
                 Open the POS in the browser
                 <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-              </Link>
+              </a>
             </div>
           </div>
         </div>

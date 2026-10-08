@@ -5,6 +5,7 @@ import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { FadeIn } from "@/components/AnimatedSection";
+import { CookieSettingsButton } from "@/components/CookieSettingsButton";
 import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 // own attorney before relying on it. The SMS section (esp. the no-sharing
 // clause) is required wording for carrier/campaign registration — do not remove it.
 
-const EFFECTIVE = "June 2026";
+const EFFECTIVE = "October 2026";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -42,8 +43,21 @@ export default function PrivacyPolicyPage() {
                   <li>Contact details you provide: name, business name, phone number, email, and billing/delivery addresses.</li>
                   <li>Order and account information: purchases, quotes, deliveries, balances, and payment records.</li>
                   <li>Messages and communications you send us, including text messages and form submissions.</li>
-                  <li>Limited technical data from our website (e.g., basic analytics and cookies) to operate and improve the site.</li>
+                  <li>Limited technical data from our website (e.g., analytics, only if you allow it) to operate and improve the site.</li>
                 </ul>
+              </Block>
+
+              <Block title="Cookies, analytics & advertising">
+                <p>
+                  With your permission, we use Google Analytics to see how the site is used and Google Ads to learn
+                  which of our ads bring visitors. They set cookies only after you choose &ldquo;Accept all&rdquo; or
+                  switch their category on in the cookie banner; until then they are off, and the site works fully
+                  without them. If you allow advertising, we also keep the ad or campaign that first brought you here
+                  in your browser&rsquo;s local storage for up to 90 days and include it with a quote or contact
+                  request. Your answer is stored in your browser, not in a cookie. If your browser sends Global
+                  Privacy Control, advertising stays off. You can change your choice at any time:{" "}
+                  <CookieSettingsButton className="cursor-pointer text-[var(--color-text-brand)] hover:underline" />.
+                </p>
               </Block>
 
               <Block title="How we use your information">

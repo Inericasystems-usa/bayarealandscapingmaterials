@@ -1,24 +1,27 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  ATTR_COOKIE,
+  ATTR_KEY,
   ATTR_TTL_SECONDS,
   captureAttribution,
+  clearAttribution,
   readAttribution,
   parseTouch,
 } from "./attribution";
+import { CONSENT_KEY, CONSENT_VERSION, DENIED, GRANTED, type ConsentState } from "./consent";
 
 /**
- * First-touch attribution. A minimal cookie jar stands in for `document.cookie`
- * — the real accessor is a getter/setter pair over a string, which is exactly
- * what this reproduces, so no DOM library is needed.
+ * First-touch attribution. A Map stands in for localStorage and a minimal
+ * cookie jar for `document.cookie` (a getter/setter pair over a string, which
+ * is exactly what the real accessor is), so no DOM library is needed.
  */
 
+let storage: Map<string, string>;
 let jar: Record<string, string> = {};
-let lastSetCookie = "";
+let cookieWrites: string[] = [];
 
 function installFakeDocument() {
   jar = {};
-  lastSetCookie = "";
+  cookieWrites = [];
   Object.defineProperty(globalThis, "document", {
     configurable: true,
     value: {
@@ -28,21 +31,41 @@ function installFakeDocument() {
           .join("; ");
       },
       set cookie(raw: string) {
-        lastSetCookie = raw;
+        cookieWrites.push(raw);
         const [pair] = raw.split(";");
         const eq = pair?.indexOf("=") ?? -1;
-        if (pair && eq > -1) jar[pair.slice(0, eq)] = pair.slice(eq + 1);
+        if (!pair || eq < 0) return;
+        if (/max-age=0/i.test(raw)) delete jar[pair.slice(0, eq)];
+        else jar[pair.slice(0, eq)] = pair.slice(eq + 1);
       },
       referrer: "https://www.google.com/",
     },
   });
 }
 
-function setLocation(search: string, pathname = "/landing") {
+function setLocation(search: string, pathname = "/landing", protocol = "https:") {
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { location: { protocol: "https:", pathname, search } },
+    value: {
+      location: { protocol, pathname, search },
+      localStorage: {
+        getItem: (k: string) => storage.get(k) ?? null,
+        setItem: (k: string, v: string) => void storage.set(k, v),
+        removeItem: (k: string) => void storage.delete(k),
+      },
+    },
   });
+}
+
+function setGPC(on: boolean) {
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: { globalPrivacyControl: on },
+  });
+}
+
+function answer(state: ConsentState) {
+  storage.set(CONSENT_KEY, JSON.stringify({ v: CONSENT_VERSION, at: new Date().toISOString(), gpc: false, state }));
 }
 
 /** Visit the site with the given query string. */
@@ -52,8 +75,12 @@ function visit(search: string, pathname = "/landing") {
 }
 
 beforeEach(() => {
+  storage = new Map();
   installFakeDocument();
   setLocation("");
+  setGPC(false);
+  clearAttribution();
+  answer(GRANTED);
 });
 
 describe("parseTouch", () => {
@@ -129,25 +156,66 @@ describe("first touch wins", () => {
   });
 });
 
-describe("cookie flags", () => {
-  it("is scoped to the site, Lax, Secure over https, with a 90-day TTL", () => {
-    visit("?gclid=TEST123");
-    expect(lastSetCookie).toContain(`${ATTR_COOKIE}=`);
-    expect(lastSetCookie).toContain("path=/");
-    expect(lastSetCookie).toContain("SameSite=Lax");
-    expect(lastSetCookie).toContain("Secure");
-    expect(lastSetCookie).toContain(`max-age=${ATTR_TTL_SECONDS}`);
-    expect(ATTR_TTL_SECONDS).toBe(90 * 24 * 60 * 60);
+describe("advertising consent", () => {
+  it("stores nothing before the visitor answers, and keeps the landing touch once they accept", () => {
+    storage.delete(CONSENT_KEY);
+    visit("?gclid=AD1");
+    expect(storage.has(ATTR_KEY)).toBe(false);
+    expect(readAttribution()).toBeNull();
+
+    // Accepting on the next page still credits the ad they arrived from.
+    answer(GRANTED);
+    visit("", "/request-quote");
+    expect(readAttribution()?.gclid).toBe("AD1");
+    expect(readAttribution()?.landing_page).toBe("/landing?gclid=AD1");
   });
 
-  it("omits Secure on plain http so local dev still works", () => {
-    installFakeDocument();
-    Object.defineProperty(globalThis, "window", {
-      configurable: true,
-      value: { location: { protocol: "http:", pathname: "/", search: "?gclid=X" } },
-    });
-    captureAttribution(new URLSearchParams("?gclid=X"));
-    expect(lastSetCookie).not.toContain("Secure");
+  it("stores nothing after Reject", () => {
+    answer(DENIED);
+    visit("?gclid=AD1");
+    expect(storage.has(ATTR_KEY)).toBe(false);
+    expect(readAttribution()).toBeNull();
+  });
+
+  it("stores nothing when Global Privacy Control is on, whatever was accepted", () => {
+    setGPC(true);
+    visit("?gclid=AD1");
+    expect(storage.has(ATTR_KEY)).toBe(false);
+    expect(readAttribution()).toBeNull();
+  });
+
+  it("forgets the record when advertising is turned off", () => {
+    visit("?gclid=AD1");
+    expect(storage.has(ATTR_KEY)).toBe(true);
+    clearAttribution();
+    expect(storage.has(ATTR_KEY)).toBe(false);
+  });
+});
+
+describe("storage", () => {
+  it("never writes a cookie", () => {
+    visit("?gclid=TEST123");
+    visit("?utm_source=google", "/products");
+    expect(cookieWrites).toEqual([]);
+    expect(document.cookie).toBe("");
+  });
+
+  it("expires the cookie earlier releases wrote, keeping its touch", () => {
+    jar.balm_attr = encodeURIComponent(
+      JSON.stringify({ gclid: "OLD", landing_page: "/", captured_at: new Date().toISOString() }),
+    );
+    visit("");
+    expect(jar.balm_attr).toBeUndefined();
+    expect(cookieWrites[0]).toMatch(/^balm_attr=; Max-Age=0; Path=\/; SameSite=Lax; Secure$/);
+    expect(readAttribution()?.gclid).toBe("OLD");
+  });
+
+  it("drops a record older than 90 days", () => {
+    const old = new Date(Date.now() - (ATTR_TTL_SECONDS + 60) * 1000).toISOString();
+    storage.set(ATTR_KEY, JSON.stringify({ gclid: "STALE", captured_at: old }));
+    expect(readAttribution()).toBeNull();
+    expect(storage.has(ATTR_KEY)).toBe(false);
+    expect(ATTR_TTL_SECONDS).toBe(90 * 24 * 60 * 60);
   });
 });
 
@@ -156,8 +224,8 @@ describe("readAttribution", () => {
     expect(readAttribution()).toBeNull();
   });
 
-  it("returns null rather than throwing on a corrupt cookie", () => {
-    jar[ATTR_COOKIE] = "not-json";
+  it("returns null rather than throwing on a corrupt record", () => {
+    storage.set(ATTR_KEY, "not-json");
     expect(readAttribution()).toBeNull();
   });
 });

@@ -2,9 +2,17 @@ import { test, expect, request } from "@playwright/test";
 
 const API = "http://localhost:4000";
 
+// There are no built-in logins: on a fresh database the API seeds its first
+// admin from ADMIN_EMAIL / ADMIN_PASSWORD (apps/api/src/seed.ts), and the
+// sample customers below from SEED_DEMO=true. Run with the same values set.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@balm.local";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
+
 // Core POS flow: public site loads, staff signs in, opens the drawer, and the
-// register is usable. Demo creds are seeded by the API (admin@balm.local).
+// register is usable.
 test.describe("BALM", () => {
+  test.skip(!ADMIN_PASSWORD, "Set ADMIN_PASSWORD (and ADMIN_EMAIL) to the API's seeded admin.");
+
   // Mark the store as onboarded before driving the register. On a fresh seed the
   // setup wizard gates the POS (correct for a brand-new tenant); BALM is an
   // already-configured store, so we complete onboarding via the API (Bearer auth
@@ -12,7 +20,7 @@ test.describe("BALM", () => {
   test.beforeAll(async () => {
     const ctx = await request.newContext({ baseURL: API });
     const login = await ctx.post("/api/v1/auth/login", {
-      data: { email: "admin@balm.local", password: "admin1234" },
+      data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
     });
     const token = (await login.json())?.data?.token as string;
     await ctx.patch("/api/v1/settings", {
@@ -32,8 +40,8 @@ test.describe("BALM", () => {
     await page.goto("/pos");
 
     // Sign in (labels are programmatically associated — getByLabel works).
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
 
     // Register chrome is up.
@@ -53,8 +61,8 @@ test.describe("BALM", () => {
 
   test("completes a cash sale end-to-end and shows a receipt", async ({ page }) => {
     await page.goto("/pos");
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: /current order/i })).toBeVisible();
 
@@ -90,8 +98,8 @@ test.describe("BALM", () => {
 
   test("records an A/R payment against a customer balance", async ({ page }) => {
     await page.goto("/pos");
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: /current order/i })).toBeVisible();
 
@@ -111,8 +119,8 @@ test.describe("BALM", () => {
 
   test("global search routes to a customer", async ({ page }) => {
     await page.goto("/pos");
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: /current order/i })).toBeVisible();
 
@@ -127,8 +135,8 @@ test.describe("BALM", () => {
 
   test("Esc closes a modal (a11y)", async ({ page }) => {
     await page.goto("/pos");
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
     await expect(page.getByRole("heading", { name: /current order/i })).toBeVisible();
 
@@ -142,14 +150,14 @@ test.describe("BALM", () => {
   // (which rely on the beforeAll-completed store) and re-complete it at the end.
   test("completes the onboarding wizard on a fresh store", async ({ page }) => {
     const ctx = await request.newContext({ baseURL: API });
-    const login = await ctx.post("/api/v1/auth/login", { data: { email: "admin@balm.local", password: "admin1234" } });
+    const login = await ctx.post("/api/v1/auth/login", { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
     const token = (await login.json())?.data?.token as string;
     await ctx.patch("/api/v1/settings", { headers: { authorization: `Bearer ${token}` }, data: { onboardingComplete: false } });
     await ctx.dispose();
 
     await page.goto("/pos");
-    await page.getByLabel("Email").fill("admin@balm.local");
-    await page.getByLabel(/password or pin/i).fill("admin1234");
+    await page.getByLabel("Email").fill(ADMIN_EMAIL);
+    await page.getByLabel(/password or pin/i).fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: /sign in/i }).click();
 
     // Wizard gates the POS on a fresh store.

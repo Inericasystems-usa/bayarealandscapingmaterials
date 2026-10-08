@@ -34,6 +34,12 @@
   background: var(--color-bg-page);
 }
 
+/* Cookie banner: rendered open in the page HTML; a visitor who already answered
+   is marked by the consent boot script before first paint, so they never see it. */
+html[data-consent-answered] .consent-banner--pending {
+  display: none;
+}
+
 /* Subtle stone-grain texture, applied via class on hero sections */
 .tex-stone {
   position: relative;

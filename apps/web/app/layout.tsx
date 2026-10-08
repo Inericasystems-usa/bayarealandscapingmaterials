@@ -1,18 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Open_Sans, JetBrains_Mono } from "next/font/google";
-import {
-  ConsentDefaults,
-  GoogleTagManager,
-  GoogleTagManagerNoScript,
-} from "@/components/GoogleTagManager";
-import { AttributionCapture } from "@/components/AttributionCapture";
-import { TrackingListeners } from "@/components/TrackingListeners";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { COMPANY } from "@/lib/company";
+import { CONSENT_BOOT_SCRIPT } from "@/lib/consent";
 import { openingHoursSpecification } from "@/lib/hours";
 // Next.js processes this global stylesheet at build time.
 import "./globals.css";
-import React, { Suspense } from "react";
+import React from "react";
 
 // Display: Fraunces — a warm humanist variable serif (opsz/SOFT/WONK axes) that
 // scales from tight body-serif to oversized editorial display. Carries the
@@ -106,23 +100,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        {/* Consent Mode v2 defaults — must run BEFORE the tag container loads. */}
-        <ConsentDefaults />
+        {/* Consent Mode v2 defaults, all denied. A plain inline script so it
+            runs while the HTML is parsed, before any tag can load. Tag Manager
+            itself is mounted by PageShell, on public pages only. */}
+        <script
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: CONSENT_BOOT_SCRIPT }}
+        />
         <script
           type="application/ld+json"
           // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd).replace(/</g, "\\u003c") }}
         />
       </head>
       <body>
-        <GoogleTagManagerNoScript />
         {children}
-        <GoogleTagManager />
-        {/* useSearchParams — a Suspense boundary keeps the rest of the tree static. */}
-        <Suspense fallback={null}>
-          <AttributionCapture />
-        </Suspense>
-        <TrackingListeners />
         <ServiceWorkerRegister />
       </body>
     </html>

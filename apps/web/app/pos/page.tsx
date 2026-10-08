@@ -37,6 +37,17 @@ import { useAuth } from "./auth";
 const API_DOWN = "Can't reach the API — start it with `pnpm dev` in apps/api.";
 type PayMethod = "terminal" | "card" | "cash" | "account";
 
+// Simulated card payments exist only on the development server. A build never
+// offers the Stripe Terminal stub (it has no reader step, so it can only fake an
+// approval) and never records a sale "approved" by a simulated terminal: test
+// paths stay out of production (PCI DSS 6.5.6).
+const ALLOW_SIMULATED_PAYMENTS = process.env.NODE_ENV === "development";
+const TENDERS: readonly PayMethod[] = ALLOW_SIMULATED_PAYMENTS
+  ? ["terminal", "card", "cash", "account"]
+  : ["terminal", "cash", "account"];
+const SIMULATED_TERMINAL =
+  "The card terminal isn't live (simulated or not set up), so card sales are disabled. Take cash or account, or configure the live terminal on the counter PC.";
+
 interface Sellable extends ApiProduct {
   unit: string;
   qtyOnHand: number;
@@ -100,6 +111,7 @@ export default function PosRegisterPage() {
   const [termMode, setTermMode] = useState<"live" | "simulated">("simulated");
   // Physical terminal (Ingenico DX8000 via the hardware bridge). null = bridge offline.
   const [physTerminal, setPhysTerminal] = useState<TerminalInfo | null>(null);
+  const terminalSimBlocked = !ALLOW_SIMULATED_PAYMENTS && physTerminal !== null && physTerminal.mode !== "live";
   const [drawerDialog, setDrawerDialog] = useState<"none" | "open" | "close">("none");
   const [floatInput, setFloatInput] = useState("200");
   const [countInput, setCountInput] = useState("");
@@ -446,6 +458,11 @@ export default function PosRegisterPage() {
       setError("Card payments need a connection. Take cash, or try again when you're back online.");
       return;
     }
+    if (!TENDERS.includes(payMethod)) return;
+    if (payMethod === "terminal" && terminalSimBlocked) {
+      setError(SIMULATED_TERMINAL);
+      return;
+    }
     setCharging(true);
     setPayStage("processing");
     setError(null);
@@ -513,6 +530,12 @@ export default function PosRegisterPage() {
         }
         if (!result.approved) {
           setError(`Declined: ${result.message || "card not approved"}.`);
+          return;
+        }
+        // The bridge can switch to its simulator at any time; its "approvals"
+        // are never recorded as card payments outside development.
+        if (result.provider === "sim" && !ALLOW_SIMULATED_PAYMENTS) {
+          setError(SIMULATED_TERMINAL);
           return;
         }
         // Record the already-authorized terminal payment with its auth details.
@@ -1060,8 +1083,8 @@ export default function PosRegisterPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-2 grid grid-cols-4 gap-2">
-                    {(["terminal", "card", "cash", "account"] as const).map((m) => (
+                  <div className={`mb-2 grid gap-2 ${TENDERS.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+                    {TENDERS.map((m) => (
                       <button
                         key={m}
                         onClick={() => setPayMethod(m)}
@@ -1146,12 +1169,16 @@ export default function PosRegisterPage() {
                         className={`h-2 w-2 rounded-full ${physTerminal ? (physTerminal.mode === "live" ? "bg-[var(--color-success)]" : "bg-[var(--color-warning)]") : "bg-[var(--color-danger)]"}`}
                       />
                       {physTerminal
-                        ? `Ingenico DX8000 ${physTerminal.mode === "live" ? "ready" : "(simulated)"}${physTerminal.host ? ` · ${physTerminal.host}` : ""}`
+                        ? `Ingenico DX8000 ${physTerminal.mode === "live" ? "ready" : `${physTerminal.mode === "off" ? "(not set up)" : "(simulated)"}${terminalSimBlocked ? " · card sales disabled" : ""}`}${physTerminal.host ? ` · ${physTerminal.host}` : ""}`
                         : "Hardware bridge offline — start it to charge the terminal."}
                     </p>
                   )}
                   {error && <p className="mb-3 text-center text-sm text-[var(--color-danger)]">{error}</p>}
-                  <Button className="w-full" onClick={completeSale} disabled={charging}>
+                  <Button
+                    className="w-full"
+                    onClick={completeSale}
+                    disabled={charging || (payMethod === "terminal" && terminalSimBlocked)}
+                  >
                     <CreditCard className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                     {payMethod === "account" ? "Place on account" : `Charge $${total.toFixed(2)}`}
                   </Button>

@@ -9,14 +9,16 @@ import { trackEmailClick, trackPhoneClick, type CallLocation } from "@/lib/analy
  * Delegation rather than per-link handlers: `tel:` links live in the header, the
  * footer, three hero variants and half a dozen page bodies, and links rendered
  * later (accordions, modals, client-fetched content) are covered for free. It is
- * mounted once in the root layout, so a route change cannot stack duplicates —
- * the effect has no dependencies and its cleanup removes the listener.
+ * mounted once per page by PageShell (public pages only), so a route change
+ * cannot stack duplicates — the effect has no dependencies and its cleanup
+ * removes the listener.
  *
  * Every `tel:` anchor carries `data-call-location` (header / footer / sticky_bar
  * / material_page / …) so Ads and GA4 can tell which placement earned the call.
  */
 
-/** Internal surfaces that share the root layout but are not marketing traffic. */
+/** Internal surfaces that are not marketing traffic (a second guard: PageShell
+ *  never renders on them). */
 const INTERNAL_PREFIXES = ["/pos", "/customer-display"];
 
 const CALL_LOCATIONS: readonly CallLocation[] = [

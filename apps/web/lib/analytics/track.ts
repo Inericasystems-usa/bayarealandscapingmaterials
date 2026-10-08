@@ -13,9 +13,28 @@ import type { AnalyticsEvent, CallLocation, UserData } from "./types";
 
 declare global {
   interface Window {
-    /** Created by the consent-default script in app/layout.tsx, before GTM. */
+    /** Created by the consent boot script (lib/consent.ts), before GTM. */
     dataLayer: Record<string, unknown>[];
+    /** Defined by the same script; absent on staff screens, which load no tags. */
+    gtag?: (...args: unknown[]) => void;
   }
+}
+
+/** Google Consent Mode v2 values, exactly as the tags read them. */
+export type ConsentPayload = Record<
+  "analytics_storage" | "ad_storage" | "ad_user_data" | "ad_personalization",
+  "granted" | "denied"
+>;
+
+/**
+ * Tell the tags what the visitor chose. Called only by lib/consent.ts.
+ *
+ * Tags already on the page re-evaluate at once, so no reload is needed. Where
+ * the boot script did not run there is no gtag(), and no tag loads either.
+ */
+export function pushConsentUpdate(payload: ConsentPayload): void {
+  if (typeof window === "undefined") return;
+  window.gtag?.("consent", "update", payload);
 }
 
 /**

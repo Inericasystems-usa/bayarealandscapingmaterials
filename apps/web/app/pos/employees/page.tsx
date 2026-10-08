@@ -433,7 +433,7 @@ export default function EmployeesPage() {
                     type="password"
                     value={form.password}
                     onChange={(e) => upd("password", e.target.value)}
-                    placeholder="defaults to PIN"
+                    placeholder="12+ characters, letters and numbers (required for admins and managers; leave empty for PIN-only counter staff)"
                     className={inputCls}
                   />
                 </Field>

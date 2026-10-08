@@ -61,8 +61,8 @@ export function QuoteForm({ defaultMaterial = "", defaultYards = "" }: QuoteForm
       // send as a truthy string or nothing at all. Send the real boolean instead,
       // so the API records consent as an explicit true/false either way.
       sms_consent: smsConsent,
-      // First-touch attribution (balm_attr cookie). The API is a different
-      // origin, so the cookie can't ride along on its own — post it explicitly.
+      // First-touch attribution (lib/attribution.ts), posted explicitly. Null
+      // unless the visitor allows advertising.
       ...(attribution ? { attribution } : {}),
       ...(filled
         ? {

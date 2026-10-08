@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, ShoppingCart } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { StaffScreenGuard } from "@/components/StaffScreenGuard";
 import { displayWsUrl, type DisplayState } from "@/lib/useCustomerDisplay";
 
 const money = (n: number) => `$${(n ?? 0).toFixed(2)}`;
@@ -46,6 +47,7 @@ export default function CustomerDisplayPage() {
 
   return (
     <div data-theme="dark" className="flex h-[100dvh] flex-col bg-[var(--color-moss-950)] text-white">
+      <StaffScreenGuard />
       {/* Header */}
       <header className="flex items-center justify-between border-b border-white/10 px-8 py-5">
         <Logo tone="inverted" height={44} />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Phone, Mail, MapPin } from "lucide-react";
 import { Container } from "@balm/ui";
 import { Logo } from "@/components/Logo";
+import { CookieSettingsButton } from "@/components/CookieSettingsButton";
 import { COMPANY } from "@/lib/company";
 
 const COLUMNS = [
@@ -114,6 +115,7 @@ export function SiteFooter() {
             >
               Terms of Service
             </Link>
+            <CookieSettingsButton className="cursor-pointer text-[var(--color-moss-300)] transition-colors hover:text-[var(--color-moss-200)]" />
           </nav>
         </div>
       </Container>

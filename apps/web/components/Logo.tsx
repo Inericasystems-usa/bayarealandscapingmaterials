@@ -9,7 +9,7 @@ import { COMPANY } from "@/lib/company";
  *   - tone="inverted" → white line-art logo, for dark backgrounds
  *
  * Optimized webp derivatives are generated from the source PNGs (see
- * public/brand/README.md). The wordmark is baked into the artwork.
+ * docs/brand-assets.md). The wordmark is baked into the artwork.
  */
 
 type LogoProps = {

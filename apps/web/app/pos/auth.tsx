@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api, setAuthToken, type AuthUser } from "@/lib/api-client";
+import { watchIdle } from "@/lib/idle";
 
 interface AuthCtx {
   user: AuthUser | null;
@@ -12,14 +13,8 @@ interface AuthCtx {
 
 const Ctx = createContext<AuthCtx | null>(null);
 
-// Non-sensitive marker (NOT the token) so the Next middleware can gate /pos/*
-// server-side. Real auth is the HttpOnly session cookie + API enforcement.
-function setAuthedMarker(on: boolean): void {
-  if (typeof document === "undefined") return;
-  document.cookie = on
-    ? `balm_authed=1; path=/; max-age=${12 * 60 * 60}; samesite=lax`
-    : "balm_authed=; path=/; max-age=0; samesite=lax";
-}
+// No cookie is written here. The API sets the HttpOnly session cookie on sign-in
+// and clears it on sign-out, and the Next middleware gates /pos/* on that cookie.
 
 export function useAuth(): AuthCtx {
   const c = useContext(Ctx);
@@ -38,12 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((u) => {
         if (!alive) return;
         setUser(u);
-        setAuthedMarker(true); // refresh the marker for an existing valid session
       })
       .catch(() => {
         if (!alive) return;
         setUser(null);
-        setAuthedMarker(false);
       })
       .finally(() => alive && setLoading(false));
     return () => {
@@ -51,11 +44,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // 15 minutes without input ends the session and brings back the sign-in
+  // screen (lib/idle.ts). A lock, not a sign-off: the shift stays clocked in
+  // and the drawer stays open, so signing in again carries on.
+  useEffect(() => {
+    if (!user) return;
+    return watchIdle(() => {
+      void api.logout().catch(() => {});
+      setAuthToken(null);
+      setUser(null);
+    });
+  }, [user]);
+
   const login = useCallback(async (email: string, password: string) => {
     const { token, user: u } = await api.login(email, password);
     setAuthToken(token);
     setUser(u);
-    setAuthedMarker(true);
     // Work time is tracked from sign-in → sign-out: auto clock-in.
     api.clockIn(u.id).catch(() => {});
   }, []);
@@ -73,7 +77,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void api.logout().catch(() => {});
     setAuthToken(null);
     setUser(null);
-    setAuthedMarker(false);
   }, [user]);
 
   return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;

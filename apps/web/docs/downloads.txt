@@ -1,0 +1,3 @@
+Built installers are written to public/downloads/ by 'pnpm build:win' in apps/desktop,
+and the site serves that folder at /downloads/. Put only the installer there: never the
+offline package zip, and no notes (everything in public/ is downloadable by anyone).

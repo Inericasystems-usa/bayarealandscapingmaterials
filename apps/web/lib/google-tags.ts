@@ -61,6 +61,8 @@ export const GOOGLE = {
  * var, so it must be set BEFORE `next build`, not just at runtime.
  *
  * Unset → no tag renders at all. There is no direct-gtag fallback on purpose:
- * a second way to load a tag is how duplicate-tag bugs ship.
+ * a second way to load a tag is how duplicate-tag bugs ship. A value that is not
+ * a container ID is treated as unset: it is written into an inline script.
  */
-export const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID ?? "";
+const rawGtmId = process.env.NEXT_PUBLIC_GTM_ID ?? "";
+export const GTM_ID = /^GTM-[A-Z0-9]+$/.test(rawGtmId) ? rawGtmId : "";

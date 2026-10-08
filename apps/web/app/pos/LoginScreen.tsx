@@ -57,7 +57,7 @@ export function LoginScreen() {
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@balm.local"
+            placeholder="you@company.com"
             className="mb-4 h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:border-[var(--color-border-focus)] focus-visible:outline-none"
             required
           />
@@ -85,14 +85,8 @@ export function LoginScreen() {
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" strokeWidth={1.75} />}
             {busy ? "Signing in…" : "Sign in"}
           </Button>
-
-          {process.env.NODE_ENV !== "production" && (
-            <p className="mt-4 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] p-2.5 text-center text-xs text-[var(--color-text-muted)]">
-              Demo: <span className="font-medium text-[var(--color-text-secondary)]">admin@balm.local</span> /{" "}
-              <span className="font-medium text-[var(--color-text-secondary)]">admin1234</span> · or PIN{" "}
-              <span className="font-medium text-[var(--color-text-secondary)]">1234</span>
-            </p>
-          )}
+          {/* Never show or prefill sign-in details here, in any build: this
+              screen is reachable from the internet (PCI DSS 2.2.2). */}
         </form>
 
         <p className="mt-4 text-center text-xs text-[var(--color-moss-200)]">

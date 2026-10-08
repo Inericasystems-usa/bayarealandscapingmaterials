@@ -26,8 +26,8 @@ export function ContactForm() {
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form).entries());
 
-    // First-touch attribution (balm_attr cookie). The API is a different origin,
-    // so the cookie can't ride along on its own — post it explicitly.
+    // First-touch attribution (lib/attribution.ts), posted explicitly. Null
+    // unless the visitor allows advertising.
     const attribution = readAttribution();
     // FormData reports a checkbox as "on" / absent, which JSON.stringify would
     // send as a truthy string or nothing at all. Send the real boolean instead,
