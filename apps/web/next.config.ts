@@ -208,7 +208,11 @@ function buildConfig(devServer: boolean): NextConfig {
     // with next/image and from any device — the Next server proxies to the API.
     async rewrites() {
       const api = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
-      return [{ source: "/api/v1/uploads/:id", destination: `${api}/api/v1/uploads/:id` }];
+      return [
+        { source: "/api/v1/uploads/:id", destination: `${api}/api/v1/uploads/:id` },
+        // Browsers and crawlers still request /favicon.ico; answer with the generated icon.
+        { source: "/favicon.ico", destination: "/icon" },
+      ];
     },
 
     async headers() {
