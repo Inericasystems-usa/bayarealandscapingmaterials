@@ -21,9 +21,23 @@ function createWindow() {
 
   // Open external links (maps, etc.) in the system browser, not the app window.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    const link = httpsLink(url);
+    if (link) shell.openExternal(link);
     return { action: "deny" };
   });
+}
+
+// Only https: links reach the system. Anything else is unencrypted (http:) or
+// could open or run something on this PC (file:, javascript:, custom protocol
+// handlers), so it is dropped. Returns the parsed URL, so what opens is what
+// was checked.
+function httpsLink(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed.href : null;
+  } catch {
+    return null;
+  }
 }
 
 app.whenReady().then(() => {

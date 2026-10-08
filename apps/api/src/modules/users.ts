@@ -66,8 +66,15 @@ const findSession = async (token: string): Promise<Session | null> =>
 const sessionOver = (s: Session, now: number): boolean =>
   !(Date.parse(s.expiresAt) > now) || !(now - Date.parse(s.lastSeenAt ?? s.createdAt) < IDLE_MS);
 
-/** The active user behind a session token (or null). Ends expired and idle sessions. */
-export async function userForToken(token: string | null | undefined): Promise<User | null> {
+/**
+ * The active user behind a session token (or null). Ends expired and idle
+ * sessions. With `touch: false` the lookup is not activity: it never extends
+ * the session (the customer-display relay checks this way).
+ */
+export async function userForToken(
+  token: string | null | undefined,
+  { touch = true }: { touch?: boolean } = {},
+): Promise<User | null> {
   if (!token) return null;
   const session = await findSession(token);
   if (!session) return null;
@@ -76,7 +83,7 @@ export async function userForToken(token: string | null | undefined): Promise<Us
     await sessions.remove(session.id);
     return null;
   }
-  if (now - Date.parse(session.lastSeenAt ?? session.createdAt) > TOUCH_MS)
+  if (touch && now - Date.parse(session.lastSeenAt ?? session.createdAt) > TOUCH_MS)
     await sessions.update(session.id, { lastSeenAt: new Date(now).toISOString() });
   const user = await users.find(session.userId);
   return user && user.active ? user : null;
@@ -241,6 +248,40 @@ authRoutes.get("/me", async (req, res) => {
 });
 
 // ── User management (/api/v1/users) — admin/manager only for writes ──
+
+// Nobody deactivates or demotes their own account, and the last active admin
+// stays, so the store can never be locked out of Employees. The admins are
+// counted again after the write: two admins removing each other at the same
+// moment can't both succeed.
+type Refusal = { code: string; message: string };
+const OWN_ACCOUNT: Refusal = {
+  code: "own_account",
+  message: "You can't deactivate your own account or change your own role; someone else has to do it.",
+};
+const LAST_ADMIN: Refusal = {
+  code: "last_admin",
+  message: "This is the last active admin account. Add or reactivate another admin first.",
+};
+const isActiveAdmin = (u: { role: Role; active: boolean }): boolean => u.role === "admin" && u.active;
+const activeAdmins = async (): Promise<number> =>
+  (await users.query({ where: { role: "admin" } })).filter((u) => u.active).length;
+
+/** Applies `patch` to `target` on behalf of `me`, or returns why it's refused (a 409). */
+async function changeUser(me: User, target: User, patch: Partial<User>): Promise<{ user: User | null } | { refused: Refusal }> {
+  const after = { role: patch.role ?? target.role, active: patch.active ?? target.active };
+  if (target.id === me.id && (!after.active || after.role !== target.role)) return { refused: OWN_ACCOUNT };
+  const removesAdmin = isActiveAdmin(target) && !isActiveAdmin(after);
+  if (removesAdmin && (await activeAdmins()) < 2) return { refused: LAST_ADMIN };
+  const user = await users.update(target.id, patch);
+  if (user && removesAdmin && (await activeAdmins()) === 0) {
+    // The other admin went at the same moment: put this account back as it was.
+    const before = Object.fromEntries(Object.keys(patch).map((k) => [k, target[k as keyof User]]));
+    await users.update(target.id, before as Partial<User>);
+    return { refused: LAST_ADMIN };
+  }
+  return { user };
+}
+
 export const usersRoutes = Router();
 
 usersRoutes.get("/", async (req, res) => {
@@ -300,18 +341,19 @@ usersRoutes.patch("/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: firstIssue(parsed.error) } });
   // A manager must not be able to escalate to admin, nor edit/lock an existing
   // admin (password/PIN/active). Only admins manage admins and grant admin.
-  if (me.role !== "admin") {
-    if (parsed.data.role === "admin")
-      return res.status(403).json({ error: { code: "forbidden", message: "Only an admin can grant the admin role." } });
-    const target = await users.find(id);
-    if (target?.role === "admin")
-      return res.status(403).json({ error: { code: "forbidden", message: "Only an admin can modify an admin account." } });
-  }
+  if (me.role !== "admin" && parsed.data.role === "admin")
+    return res.status(403).json({ error: { code: "forbidden", message: "Only an admin can grant the admin role." } });
+  const target = await users.find(id);
+  if (!target) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
+  if (me.role !== "admin" && target.role === "admin")
+    return res.status(403).json({ error: { code: "forbidden", message: "Only an admin can modify an admin account." } });
   const { password, pin, ...rest } = parsed.data;
   const patch: Partial<User> = { ...rest };
   if (password) patch.passwordHash = hashPassword(password);
   if (pin) patch.pinHash = hashPassword(pin); // reset PIN (never stored plaintext)
-  const updated = await users.update(id, patch);
+  const result = await changeUser(me, target, patch);
+  if ("refused" in result) return res.status(409).json({ error: result.refused });
+  const updated = result.user;
   if (!updated) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
   // Security-relevant: surface role/active/permission/credential changes.
   const changes: string[] = [];
@@ -328,8 +370,12 @@ usersRoutes.delete("/:id", async (req, res) => {
   const me = await getAuthUser(req);
   if (!me || me.role !== "admin")
     return res.status(403).json({ error: { code: "forbidden", message: "Admins only." } });
+  const target = await users.find(id_of(req));
+  if (!target) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
   // Soft-deactivate rather than delete, to preserve sales/timeclock history.
-  const updated = await users.update(id_of(req), { active: false });
+  const result = await changeUser(me, target, { active: false });
+  if ("refused" in result) return res.status(409).json({ error: result.refused });
+  const updated = result.user;
   if (!updated) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
   await recordAudit(me, "user.deactivate", `Deactivated ${updated.email}`, { targetId: updated.id });
   return res.json({ data: publicUser(updated) });

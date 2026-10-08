@@ -4,7 +4,7 @@ REM  R&S Tire Sales POS (Inerica POS) - one-click launcher
 REM  Offline, self-contained. Starts the API + web, opens the POS.
 REM ============================================================
 setlocal
-title R&S Tire POS
+title R^&S Tire POS
 set "ROOT=%~dp0"
 set "NODE=%ROOT%node\node.exe"
 
@@ -16,13 +16,13 @@ if not exist "%DATADIR%" mkdir "%DATADIR%"
 set "NODE_ENV=production"
 set "BALM_DATA_DIR=%DATADIR%"
 set "CORS_ORIGINS=http://localhost:3000"
-REM Served over http://localhost (no HTTPS) so cookies must not be Secure.
-set "COOKIE_SECURE=false"
-REM Clean store install: only the tire catalog + inventory + staff seed.
+REM The API listens on this PC only; nothing else on the network can reach it.
+set "HOST=127.0.0.1"
+REM Clean store install: only the tire catalog + inventory + the first admin.
 set "SEED_DEMO=false"
 set "PORT="
 
-echo Starting R&S Tire POS services...
+echo Starting R^&S Tire POS services...
 
 start "R&S Tire POS - API" /min "%NODE%" "%ROOT%api\server.mjs"
 pushd "%ROOT%web"
@@ -36,7 +36,7 @@ set "POSURL=http://localhost:3000/pos"
 where msedge >nul 2>&1 && (start "" msedge --app=%POSURL% --window-size=1460,920) || (start "" %POSURL%)
 
 echo.
-echo R&S Tire POS is running.  Sign in:  admin@balm.local  /  admin1234
+echo R^&S Tire POS is running.  Sign in with your admin account (first start: see README.txt).
 echo Leave this window open while you use the POS. Close it to stop the services.
 echo.
 pause >nul

@@ -14,7 +14,10 @@ import { can } from "./permissions.js";
  * Carts show customer names and totals, so only signed-in staff may connect:
  * the upgrade must carry a live session (the browser's session cookie, or the
  * session token as ?token=) from an allowed origin, and publishing as the
- * register needs register access.
+ * register needs register access. Open sockets re-check their session and
+ * close once it has ended (sign-out, the 15-minute idle limit, a deactivated
+ * account). The relay never counts as activity, so an open display can't keep
+ * a session alive.
  */
 interface Channel {
   displays: Set<WebSocket>;
@@ -22,6 +25,10 @@ interface Channel {
 }
 
 const channels = new Map<string, Channel>();
+
+// How often open sockets re-check their session: on a timer, never on the
+// register's message path.
+const RECHECK_MS = 15_000;
 
 function channel(id: string): Channel {
   let c = channels.get(id);
@@ -43,14 +50,16 @@ function sessionToken(req: IncomingMessage, url: URL): string | null {
   return null;
 }
 
-export function startDisplayServer(port: number, log: (msg: string) => void): WebSocketServer {
+export function startDisplayServer(port: number, log: (msg: string) => void, recheckMs = RECHECK_MS): WebSocketServer {
+  // Each open socket's session token, and whether it publishes as the register.
+  const peers = new Map<WebSocket, { token: string | null; register: boolean }>();
   const wss = new WebSocketServer({
     port,
     host: config.HOST,
     verifyClient: ({ origin, req }, done) => {
       if (origin && !isAllowedOrigin(origin)) return done(false, 403);
       const url = new URL(req.url ?? "/", "http://localhost");
-      userForToken(sessionToken(req, url)).then(
+      userForToken(sessionToken(req, url), { touch: false }).then(
         (user) => {
           if (!user) return done(false, 401);
           if (url.searchParams.get("role") === "register" && !can(user, "register")) return done(false, 403);
@@ -66,10 +75,13 @@ export function startDisplayServer(port: number, log: (msg: string) => void): We
     const channelId = url.searchParams.get("channel") || url.searchParams.get("ws") || "MAIN";
     const role = url.searchParams.get("role") || "display";
     const c = channel(channelId);
+    peers.set(ws, { token: sessionToken(req, url), register: role === "register" });
+    ws.on("close", () => peers.delete(ws));
 
     if (role === "register") {
       // Publisher: fan messages out to every display on this channel.
       ws.on("message", (data) => {
+        if (ws.readyState !== WebSocket.OPEN) return; // closing: its session ended
         const msg = data.toString();
         c.last = msg;
         for (const d of c.displays) if (d.readyState === WebSocket.OPEN) d.send(msg);
@@ -81,6 +93,27 @@ export function startDisplayServer(port: number, log: (msg: string) => void): We
       ws.on("close", () => c.displays.delete(ws));
     }
   });
+
+  // Close every socket whose session has ended or whose user lost register
+  // access. A lookup that fails closes too.
+  const recheck = async () => {
+    for (const [ws, peer] of peers) {
+      const user = await userForToken(peer.token, { touch: false }).catch(() => null);
+      if (!user || (peer.register && !can(user, "register"))) ws.close(1008, "Session ended");
+    }
+  };
+  let checking = false;
+  const timer = setInterval(() => {
+    if (checking || !peers.size) return;
+    checking = true;
+    recheck()
+      .catch((err) => log(`display session check failed: ${(err as Error).message}`))
+      .finally(() => {
+        checking = false;
+      });
+  }, recheckMs);
+  timer.unref();
+  wss.on("close", () => clearInterval(timer));
 
   wss.on("error", (err) => log(`display socket error: ${(err as Error).message}`));
   log(`customer display socket on ws://${config.HOST}:${port} (staff sessions only)`);

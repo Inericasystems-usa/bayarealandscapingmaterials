@@ -1,40 +1,170 @@
 // Plain-JS config for the packaged (offline) build so `next start` needs no
-// TypeScript compiler at runtime. Mirrors the repo's next.config.ts.
-const isDev = process.env.NODE_ENV !== "production";
-const CSP = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval' blob:" : ""} https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
-  "media-src 'self' https: data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' https: http: ws: wss:",
-  "worker-src 'self' blob:",
-  "object-src 'none'",
-  "frame-src 'self' https://www.google.com https://maps.google.com",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
+// TypeScript compiler at runtime. Mirrors apps/web/next.config.ts: keep the two
+// in step. At runtime `next start` reads images and poweredByHeader from here;
+// headers, redirects and rewrites come from the build, which build-installer.sh
+// runs with next.config.ts. Only `next start` loads this file, so it has no
+// development policy, no production-host guard and no redirects (the www one
+// needs lib/company.ts, which is TypeScript).
+
+/** Origin of a URL from the environment, or null when unset or malformed. */
+function originOf(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Origin of a tile URL template; a leading {s} subdomain becomes a wildcard. */
+function tileOrigin(template) {
+  const m = template?.match(/^(https?):\/\/([^/?#]+)/);
+  return m ? `${m[1]}://${m[2].replace(/^\{[a-z]+\}\./i, "*.")}` : null;
+}
+
+// ── Content-Security-Policy ─────────────────────────────────────────────
+// Two policies. Public pages allow the Google tag and Maps; the staff screens
+// (/pos, /customer-display) allow no third-party script at all, only the API,
+// the counter-PC bridge, the display socket, map tiles and the receipt QR.
+// 'unsafe-inline' stays for scripts: Next's prerendered pages carry inline
+// bootstrap scripts without nonces.
+
+const CDN = "https://d2xsxph8kpxj0f.cloudfront.net";
+
+// The offline build sets no NEXT_PUBLIC_API_URL, so the browser calls port
+// 4000 on whatever host served the page (lib/api-client.ts) and the policy
+// allows that. A build that sets it allows exactly that origin.
+const API = originOf(process.env.NEXT_PUBLIC_API_URL);
+const API_SOURCES = API ? [API] : ["http://*:4000", "https://*:4000"];
+// Customer-display socket: port 3001 on the API host (lib/useCustomerDisplay.ts).
+const DISPLAY_HOST = API ? new URL(API).hostname : "localhost";
+const DISPLAY_SOURCES = [`ws://${DISPLAY_HOST}:3001`, `wss://${DISPLAY_HOST}:3001`];
+// Cash drawer, printer and card terminal bridge on the counter PC (lib/hardware.ts).
+const BRIDGE = originOf(process.env.NEXT_PUBLIC_BRIDGE_URL) ?? "http://localhost:9110";
+// Fleet map (app/pos/dispatch/FleetMap.tsx).
+const TILES = tileOrigin(process.env.NEXT_PUBLIC_MAP_TILE_URL) ?? "https://*.tile.openstreetmap.org";
+
+// GTM -> Google tag -> GA4 + Google Ads (lib/google-tags.ts), per Google's CSP
+// guide for the tag platform. Regional google.<tld> hosts cannot be wildcarded;
+// remarketing hits to them are simply dropped.
+const GOOGLE_TAG = {
+  script: [
+    "https://www.googletagmanager.com",
+    "https://www.googleadservices.com",
+    "https://googleads.g.doubleclick.net",
+    "https://www.google.com",
+  ],
+  img: [
+    "https://www.googletagmanager.com",
+    "https://*.google-analytics.com",
+    "https://*.g.doubleclick.net",
+    "https://*.google.com",
+    "https://www.googleadservices.com",
+    "https://pagead2.googlesyndication.com",
+  ],
+  connect: [
+    "https://www.googletagmanager.com",
+    "https://*.google-analytics.com",
+    "https://*.g.doubleclick.net",
+    "https://ad.doubleclick.net",
+    "https://*.google.com",
+    "https://www.googleadservices.com",
+    "https://pagead2.googlesyndication.com",
+  ],
+  frame: ["https://www.googletagmanager.com", "https://td.doubleclick.net"],
+};
+
+// Maps JavaScript API and Places (lib/maps/loader.ts) on /request-quote and
+// /service-area, plus the embedded map on /contact.
+const GOOGLE_MAPS = {
+  script: ["https://maps.googleapis.com"],
+  img: [
+    "https://*.googleapis.com",
+    "https://*.gstatic.com",
+    "https://*.google.com",
+    "https://*.ggpht.com",
+    "https://*.googleusercontent.com",
+  ],
+  connect: ["https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com"],
+  frame: ["https://www.google.com", "https://maps.google.com"],
+};
+
+function serialize(directives) {
+  return Object.entries(directives)
+    .map(([name, sources]) => [name, ...new Set(sources)].join(" "))
+    .join("; ");
+}
+
+const FIXED = {
+  "object-src": ["'none'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+  "frame-ancestors": ["'none'"],
+};
+
+const SITE_POLICY = {
+  "default-src": ["'self'"],
+  "script-src": ["'self'", "'unsafe-inline'", ...GOOGLE_TAG.script, ...GOOGLE_MAPS.script],
+  // Maps injects its control stylesheet from fonts.googleapis.com.
+  "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  "img-src": ["'self'", "data:", "blob:", CDN, ...GOOGLE_TAG.img, ...GOOGLE_MAPS.img],
+  // The home hero video streams from the CDN.
+  "media-src": ["'self'", "blob:", CDN],
+  "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
+  "connect-src": [
+    "'self'",
+    ...API_SOURCES,
+    ...GOOGLE_TAG.connect,
+    ...GOOGLE_MAPS.connect,
+    "data:",
+    "blob:",
+  ],
+  "worker-src": ["'self'", "blob:"],
+  "frame-src": ["'self'", ...GOOGLE_MAPS.frame, ...GOOGLE_TAG.frame],
+  ...FIXED,
+};
+
+const STAFF_POLICY = {
+  "default-src": ["'self'"],
+  "script-src": ["'self'", "'unsafe-inline'"],
+  "style-src": ["'self'", "'unsafe-inline'"],
+  // The receipt window (lib/receipt.ts) inherits this policy: QR code + logo.
+  "img-src": ["'self'", "data:", "blob:", CDN, TILES, "https://api.qrserver.com", ...API_SOURCES],
+  "media-src": ["'self'"],
+  "font-src": ["'self'", "data:"],
+  "connect-src": ["'self'", ...API_SOURCES, ...DISPLAY_SOURCES, BRIDGE],
+  "worker-src": ["'self'", "blob:"],
+  "frame-src": ["'self'"],
+  ...FIXED,
+};
+
+// Staff screens are never indexed. robots.txt stays free of private paths;
+// the header does the job instead.
+const STAFF_PATHS = ["/pos", "/pos/:path*", "/customer-display", "/customer-display/:path*"];
+const NOINDEX = { key: "X-Robots-Tag", value: "noindex, nofollow" };
 
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Never publish source maps of the client bundle.
+  productionBrowserSourceMaps: false,
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   transpilePackages: ["@balm/ui", "@balm/lib-domain", "@balm/shared-types"],
   typedRoutes: true,
   images: {
     formats: ["image/avif", "image/webp"],
-    remotePatterns: [
-      { protocol: "https", hostname: "**.cloudfront.net" },
-      { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },
-      { protocol: "https", hostname: "images.unsplash.com" },
-    ],
+    // Only BALM's own media on the CDN. Photos uploaded through the POS are
+    // same-origin (/api/v1/uploads/:id, rewritten to the API below).
+    remotePatterns: [{ protocol: "https", hostname: "d2xsxph8kpxj0f.cloudfront.net", pathname: "/310519663521319543/**" }],
   },
   async rewrites() {
     const api = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
-    return [{ source: "/api/v1/uploads/:id", destination: `${api}/api/v1/uploads/:id` }];
+    return [
+      { source: "/api/v1/uploads/:id", destination: `${api}/api/v1/uploads/:id` },
+      // Browsers and crawlers still request /favicon.ico; answer with the generated icon.
+      { source: "/favicon.ico", destination: "/icon" },
+    ];
   },
   async headers() {
     return [
@@ -44,11 +174,19 @@ const config = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Content-Security-Policy", value: CSP },
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
         ],
       },
+      {
+        source: "/((?!pos(?:/|$)|customer-display(?:/|$)).*)",
+        headers: [{ key: "Content-Security-Policy", value: serialize(SITE_POLICY) }],
+      },
+      ...STAFF_PATHS.map((source) => ({
+        source,
+        headers: [{ key: "Content-Security-Policy", value: serialize(STAFF_POLICY) }, NOINDEX],
+      })),
+      ...["/download", "/api/:path*"].map((source) => ({ source, headers: [NOINDEX] })),
     ];
   },
 };

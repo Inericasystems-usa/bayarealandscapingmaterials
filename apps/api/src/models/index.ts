@@ -203,7 +203,7 @@ defineModel(
   "leads",
   {
     type: String, receivedAt: String, ip: String, userAgent: String, payload: M,
-    // First touch, from the balm_attr cookie.
+    // First touch, as the website kept it (localStorage, only with advertising consent).
     gclid: String, gbraid: String, wbraid: String, msclkid: String, fbclid: String,
     utm_source: String, utm_medium: String, utm_campaign: String,
     utm_term: String, utm_content: String,

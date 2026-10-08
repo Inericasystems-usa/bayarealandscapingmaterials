@@ -143,9 +143,9 @@ const smsConsent = z
   .transform((v) => v === true || v === "on" || v === "true");
 
 /* ── First-touch attribution ──────────────────────────────────────────
- * Captured client-side into the `balm_attr` cookie (90-day TTL, first touch
- * wins) and posted alongside the lead, because the website and the API are
- * different origins and the cookie cannot travel on its own.
+ * Kept client-side in localStorage under `balm_attr` (90-day TTL, first touch
+ * wins), only while the visitor allows advertising, and posted alongside the
+ * lead: the website and the API are different origins, and no cookie carries it.
  *
  * Carries no PII — click ids, UTMs, landing page and referrer only. Every field
  * is optional and bounded: a malformed/absent block must never 422 a lead.

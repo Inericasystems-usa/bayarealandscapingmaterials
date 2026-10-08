@@ -16,9 +16,8 @@ REM Shared runtime env for both services.
 set "NODE_ENV=production"
 set "BALM_DATA_DIR=%DATADIR%"
 set "CORS_ORIGINS=http://localhost:3000"
-REM Served over http://localhost (no HTTPS), so cookies must not be Secure or
-REM the browser drops them and sign-in fails.
-set "COOKIE_SECURE=false"
+REM The API listens on this PC only; nothing else on the network can reach it.
+set "HOST=127.0.0.1"
 set "PORT="
 
 echo Starting Inerica POS services...
@@ -39,7 +38,7 @@ set "POSURL=http://localhost:3000/pos"
 where msedge >nul 2>&1 && (start "" msedge --app=%POSURL% --window-size=1460,920) || (start "" %POSURL%)
 
 echo.
-echo Inerica POS is running.  Sign in:  admin@balm.local  /  admin1234
+echo Inerica POS is running.  Sign in with your admin account (first start: see README.txt).
 echo Leave this window open while you use the POS. Close it to stop the services.
 echo.
 pause >nul

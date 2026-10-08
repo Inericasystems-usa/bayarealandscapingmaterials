@@ -12,9 +12,26 @@ HOW TO START
 
 SIGN IN
 -------
-  Email:     admin@balm.local
-  Password:  admin1234
-  (Change this in Settings > Employees after your first sign-in.)
+  There is no built-in sign-in. The first start creates the owner's admin
+  account, and for that one start it needs ADMIN_EMAIL and ADMIN_PASSWORD
+  (12+ characters, with letters and numbers). Click this folder's address
+  bar, type  cmd  and press Enter, then run these three lines with your own
+  e-mail and password in place of the <...> parts:
+
+    set "ADMIN_EMAIL=<your e-mail>"
+    set "ADMIN_PASSWORD=<your password>"
+    "Start R&S Tire POS.bat"
+
+  Use a password without the characters  %  or  "  (the cmd window would
+  change them).
+
+  Sign in with that e-mail and password, then add your staff in
+  Settings > Employees. Afterwards, close the POS (that cmd window shows your
+  password) and start it again with a plain double-click: the two values
+  are not saved anywhere, and later starts never need them.
+
+  If the first start ran without them (or with a shorter password), nobody
+  can sign in yet: close the POS and start it again as above.
 
 WHOLESALE vs RETAIL
 -------------------
@@ -44,7 +61,7 @@ TO STOP
 
 NOTES
 -----
-  - Card payments and text features activate once provider keys are added;
-    until then they run in a safe simulated mode.
+  - Card payments work once the card reader is set up; until then card sales
+    are off. Text features activate once provider keys are added.
   - AI features are not included in this edition.
   - Support: Inerica Systems.

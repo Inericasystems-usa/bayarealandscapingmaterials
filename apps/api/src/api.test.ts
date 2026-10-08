@@ -735,6 +735,69 @@ describe("passwords and PINs", () => {
   });
 });
 
+describe("account changes that could lock the store out", () => {
+  it("nobody deactivates or demotes their own account; other edits of it still work", async () => {
+    const admin = (await login(ADMIN, ADMIN_PW))!;
+    const me = (await authed("GET", "/api/v1/auth/me", admin)).json().data as { id: string; name: string };
+    const own = `/api/v1/users/${me.id}`;
+    for (const res of [
+      await authed("PATCH", own, admin, { active: false }),
+      await authed("PATCH", own, admin, { role: "manager" }),
+      await authed("DELETE", own, admin),
+    ]) {
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toMatchObject({ code: "own_account", message: expect.stringMatching(/your own account/) });
+    }
+    // The Employees form sends the unchanged role with every edit.
+    expect((await authed("PATCH", own, admin, { name: me.name, role: "admin", active: true })).statusCode).toBe(200);
+    const mgr = (await login("manager@balm.local", DEMO_PW))!;
+    const mgrId = ((await authed("GET", "/api/v1/auth/me", mgr)).json().data as { id: string }).id;
+    expect((await authed("PATCH", `/api/v1/users/${mgrId}`, mgr, { role: "cashier" })).statusCode).toBe(409);
+    expect((await authed("GET", "/api/v1/auth/me", mgr)).json().data.role).toBe("manager");
+  });
+
+  it("an active admin always remains, even when two admins remove each other at the same moment", async () => {
+    const { users } = await import("./modules/users.js");
+    const admin = (await login(ADMIN, ADMIN_PW))!;
+    const addAdmin = async (n: string) => {
+      const res = await authed("POST", "/api/v1/users", admin, { name: `Admin ${n}`, email: `admin.${n}@balm.local`, role: "admin", pin: "1470", password: `admin-${n}-pass-2026` });
+      expect(res.statusCode).toBe(201);
+      return { id: (res.json().data as { id: string }).id, token: (await login(`admin.${n}@balm.local`, `admin-${n}-pass-2026`))! };
+    };
+    const b = await addAdmin("b");
+    const c = await addAdmin("c");
+    const seeded = (await users.findBy((u) => u.email === ADMIN))!;
+    const activeAdmins = async () => (await users.all()).filter((u) => u.role === "admin" && u.active).map((u) => u.id);
+    const realUpdate = users.update.bind(users);
+    await realUpdate(seeded.id, { active: false }); // b and c are the only active admins
+    try {
+      // c removes b just as b's removal of c is written: b's change is undone.
+      vi.spyOn(users, "update").mockImplementationOnce(async (id, patch) => {
+        const updated = await realUpdate(id, patch);
+        await realUpdate(b.id, { active: false });
+        return updated;
+      });
+      const res = await authed("DELETE", `/api/v1/users/${c.id}`, b.token);
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toMatchObject({ code: "last_admin", message: expect.stringMatching(/last active admin/) });
+      expect(await activeAdmins()).toEqual([c.id]);
+
+      // Both for real, at once: never both.
+      await realUpdate(b.id, { active: true });
+      const both = await Promise.all([
+        authed("DELETE", `/api/v1/users/${c.id}`, b.token),
+        authed("PATCH", `/api/v1/users/${b.id}`, c.token, { role: "manager" }),
+      ]);
+      expect(both.map((r) => r.statusCode)).not.toEqual([200, 200]);
+      expect((await activeAdmins()).length).toBeGreaterThan(0);
+    } finally {
+      vi.restoreAllMocks();
+      await realUpdate(seeded.id, { active: true });
+      for (const id of [b.id, c.id]) await realUpdate(id, { active: false });
+    }
+  });
+});
+
 describe("errors", () => {
   it("a 5xx never carries the message, code or stack outside development", async () => {
     const { errorHandler } = await import("./server.js");
@@ -1010,6 +1073,81 @@ describe("customer display socket", () => {
       expect(await attempt("role=register&ws=MAIN", { cookie: `balm_session=${admin}`, origin: "https://www.bayarealandscapingmaterials.com" })).toBe(101);
     } finally {
       await new Promise((r) => wss.close(r));
+    }
+  });
+
+  // A relay that re-checks sessions every 50 ms; `open` resolves once a socket
+  // is up, with a promise of its close code.
+  async function relay() {
+    const { startDisplayServer } = await import("./lib/display.js");
+    const wss = startDisplayServer(0, () => {}, 50);
+    await new Promise((r) => wss.once("listening", r));
+    const { port } = wss.address() as AddressInfo;
+    const sockets: WebSocket[] = [];
+    const open = (query: string, token: string) =>
+      new Promise<{ closed: Promise<number> }>((resolve, reject) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, { headers: { cookie: `balm_session=${token}` } });
+        sockets.push(ws);
+        const closed = new Promise<number>((r) => ws.once("close", (code) => r(code)));
+        ws.once("open", () => resolve({ closed }));
+        ws.once("unexpected-response", (req, res) => {
+          req.destroy();
+          reject(new Error(`upgrade refused: ${res.statusCode}`));
+        });
+      });
+    const stop = async () => {
+      for (const ws of sockets) ws.terminate();
+      await new Promise((r) => wss.close(r));
+    };
+    return { open, stop };
+  }
+  // The close code, or "open" while the socket is still up after `ms`.
+  const closeCode = (closed: Promise<number>, ms = 3000) =>
+    Promise.race([closed, new Promise<"open">((r) => setTimeout(() => r("open"), ms))]);
+
+  it("closes sockets once their session ends (sign-out, idle limit), and never keeps one alive", async () => {
+    const { sessions } = await import("./modules/users.js");
+    const { hashToken } = await import("./lib/crypto.js");
+    const { open, stop } = await relay();
+    try {
+      const t1 = (await login(ADMIN, ADMIN_PW))!;
+      const register = await open("role=register&ws=OUT", t1);
+      const display = await open("role=display&ws=OUT", t1);
+      expect((await authed("POST", "/api/v1/auth/logout", t1)).statusCode).toBe(200);
+      expect(await closeCode(register.closed)).toBe(1008);
+      expect(await closeCode(display.closed)).toBe(1008);
+
+      // Connecting and the re-checks are not activity: the 15-minute idle limit still ends it.
+      const t2 = (await login(ADMIN, ADMIN_PW))!;
+      const [s] = await sessions.query({ where: { tokenHash: hashToken(t2) } });
+      const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+      await sessions.update(s!.id, { lastSeenAt: fiveMinAgo });
+      const idle = await open("role=display&ws=IDLE", t2);
+      expect(await closeCode(idle.closed, 400)).toBe("open"); // several re-checks later
+      expect((await sessions.find(s!.id))!.lastSeenAt).toBe(fiveMinAgo);
+      await sessions.update(s!.id, { lastSeenAt: new Date(Date.now() - 16 * 60_000).toISOString() });
+      expect(await closeCode(idle.closed)).toBe(1008);
+    } finally {
+      await stop();
+    }
+  });
+
+  it("closes a register socket when its user loses register access, and every socket of a deactivated user", async () => {
+    const { open, stop } = await relay();
+    try {
+      const admin = (await login(ADMIN, ADMIN_PW))!;
+      const created = await authed("POST", "/api/v1/users", admin, { name: "Display Temp", email: "display.temp@balm.local", role: "cashier", pin: "3579", password: "display-temp-2026" });
+      const id = (created.json().data as { id: string }).id;
+      const t = (await login("display.temp@balm.local", "display-temp-2026"))!;
+      const register = await open("role=register&ws=ACCESS", t);
+      const display = await open("role=display&ws=ACCESS", t);
+      expect((await authed("PATCH", `/api/v1/users/${id}`, admin, { permissions: ["orders"] })).statusCode).toBe(200);
+      expect(await closeCode(register.closed)).toBe(1008);
+      expect(await closeCode(display.closed, 300)).toBe("open"); // a display needs no register access
+      expect((await authed("DELETE", `/api/v1/users/${id}`, admin)).statusCode).toBe(200);
+      expect(await closeCode(display.closed)).toBe(1008);
+    } finally {
+      await stop();
     }
   });
 });
