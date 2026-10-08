@@ -1,0 +1,2 @@
+# Shell scripts run on Linux servers: LF even when checked out or archived on Windows.
+*.sh text eol=lf

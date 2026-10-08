@@ -1,0 +1,2 @@
+# Server files: LF even when checked out or archived on Windows.
+* text=auto eol=lf

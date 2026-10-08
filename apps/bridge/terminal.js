@@ -9,11 +9,14 @@
 //   • Elavon's own semi-integration (Commerce/Engage local or cloud API).
 //
 // We isolate that behind one `sale()/voidTxn()` interface so the POS flow is
-// identical regardless, and the bridge runs in "sim" until real credentials and
-// the certified spec are wired in. Flip TERMINAL_PROVIDER to go live.
+// identical regardless. TERMINAL_PROVIDER has no default: an unconfigured
+// counter PC declines terminal sales instead of approving them, and "sim"
+// (approves everything, charges nothing) must be chosen explicitly for demos.
+
+const net = require("node:net");
 
 const CFG = {
-  provider: (process.env.TERMINAL_PROVIDER || "sim").toLowerCase(), // sim | datacap | elavon
+  provider: (process.env.TERMINAL_PROVIDER || "none").toLowerCase(), // datacap | elavon | sim (demos) | none
   host: process.env.TERMINAL_HOST || "", // device IP on the LAN, e.g. 192.168.1.60
   port: process.env.TERMINAL_PORT ? Number(process.env.TERMINAL_PORT) : 0,
   terminalId: process.env.TERMINAL_ID || "", // Pad / Lane / Terminal ID from Elavon
@@ -31,12 +34,12 @@ function delay(ms) {
 }
 
 function info() {
-  const live = CFG.provider !== "sim";
+  const mode = CFG.provider === "sim" ? "simulated" : CFG.provider === "none" ? "off" : "live";
   return {
     provider: CFG.provider,
-    mode: live ? "live" : "simulated",
+    mode,
     // "configured" = sim is always ready; a real provider needs host/endpoint + id.
-    configured: !live || Boolean((CFG.host || CFG.endpoint) && CFG.terminalId),
+    configured: mode === "simulated" || (mode === "live" && Boolean((CFG.host || CFG.endpoint) && CFG.terminalId)),
     host: CFG.host || null,
     terminalId: CFG.terminalId || null,
   };
@@ -70,19 +73,49 @@ async function simVoid(reference) {
 // If your account is on the *classic* NETePay Hosted (XML) interface instead,
 // swap the body/parse in gatewayPost() + datacapSale() for the XML command set
 // (dsiEMVX: <TStream><Transaction>…</Transaction></TStream>) — the rest is the same.
+
+// The processor secret only travels over https. Plain http is allowed just for
+// a device on the store LAN (DC Direct to the terminal's IP), and never with
+// TERMINAL_SECRET set (PCI DSS 8.3.2).
+function gatewayUrl() {
+  let url;
+  try {
+    url = new URL(CFG.endpoint);
+  } catch {
+    throw new Error("TERMINAL_ENDPOINT is not a valid URL");
+  }
+  if (url.protocol === "https:") return url;
+  // An IP literal, not a name: "10.example.com" can resolve anywhere.
+  const lan = net.isIPv4(url.hostname) && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.)/.test(url.hostname);
+  if (url.protocol !== "http:" || !lan) throw new Error("TERMINAL_ENDPOINT must use https");
+  if (CFG.secret) throw new Error("refusing to send TERMINAL_SECRET over http");
+  return url;
+}
+
+// Masks anything shaped like a card number (13-19 digits) before it is logged.
+function redactPan(text) {
+  return String(text).replace(/\d(?:[ -]?\d){12,18}/g, (m) => `****${m.replace(/\D/g, "").slice(-4)}`);
+}
+
 async function gatewayPost(payload) {
   if (!CFG.endpoint) throw new Error("TERMINAL_ENDPOINT is not set (Datacap DC Direct URL)");
+  const url = gatewayUrl();
   const headers = { "content-type": "application/json", accept: "application/json" };
   if (CFG.secret) headers.authorization = `Bearer ${CFG.secret}`;
-  const res = await fetch(CFG.endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
+  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
   const text = await res.text();
   let json;
   try {
-    json = JSON.parse(text);
+    json = res.ok ? JSON.parse(text) : undefined;
   } catch {
-    throw new Error(`gateway returned non-JSON (${res.status}): ${text.slice(0, 200)}`);
+    json = undefined;
   }
-  if (!res.ok) throw new Error(`gateway error (${res.status}): ${text.slice(0, 200)}`);
+  if (json === undefined) {
+    // The raw reply stays in this PC's log; the browser only gets the status.
+    // Masked before it is cut, so a card number at the cut is masked too.
+    console.error(`terminal gateway error (${res.status}): ${redactPan(text).slice(0, 500)}`);
+    throw new Error(`gateway error (${res.status})`);
+  }
   return json;
 }
 
@@ -143,13 +176,19 @@ function elavonDirect() {
   );
 }
 
+function notConfigured() {
+  throw new Error("payment terminal is not set up on this PC (set TERMINAL_PROVIDER in apps/bridge/.env)");
+}
+
 async function sale({ amount, reference }) {
   if (!(amount > 0)) throw new Error("amount must be positive");
+  if (CFG.provider === "none") return notConfigured();
   if (CFG.provider === "sim") return simSale(amount, reference);
   if (CFG.provider === "datacap") return datacapSale(amount, reference);
   return elavonDirect();
 }
 async function voidTxn({ reference }) {
+  if (CFG.provider === "none") return notConfigured();
   if (CFG.provider === "sim") return simVoid(reference);
   if (CFG.provider === "datacap") return datacapVoid(reference);
   return elavonDirect();

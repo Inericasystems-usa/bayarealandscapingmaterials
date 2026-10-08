@@ -61,8 +61,10 @@ const SECRET_PATTERNS = [
   },
   {
     // A secret-looking assignment with a real value (>=16 non-placeholder chars).
+    // The value stays on one line, so a name inside one string can't pair up
+    // with the next string literal further down the file.
     name: "Hardcoded secret assignment",
-    re: /\b(?:[A-Z_]*(?:SECRET|TOKEN|PASSWORD|API[_-]?KEY|TENANT[_-]?SECRET|PRIVATE[_-]?KEY))\b\s*[:=]\s*["'`]([^"'`]{16,})["'`]/i,
+    re: /\b(?:[A-Z_]*(?:SECRET|TOKEN|PASSWORD|API[_-]?KEY|TENANT[_-]?SECRET|PRIVATE[_-]?KEY))\b\s*[:=]\s*["'`]([^"'`\r\n]{16,})["'`]/i,
     // Skip placeholders, interpolated/generated values, and obvious fakes so
     // .env.example, defaults, and simulation code don't trip it.
     allow: (m) =>
@@ -110,9 +112,10 @@ for (const f of files) {
   }
   const isPlaceholderFile = PLACEHOLDER_FILES.some((re) => re.test(f));
   for (const p of SECRET_PATTERNS) {
-    const m = content.match(p.re);
+    // Every match counts: a placeholder near the top must not hide a real value further down.
+    const every = new RegExp(p.re.source, p.re.flags.includes("g") ? p.re.flags : `${p.re.flags}g`);
+    const m = [...content.matchAll(every)].find((x) => !(p.allow && p.allow(x)));
     if (!m) continue;
-    if (p.allow && p.allow(m)) continue;
     // In known placeholder files, only the specific credential prefixes count.
     if (isPlaceholderFile && p.name === "Hardcoded secret assignment") continue;
     findings.push({ file: f, issue: `${p.name}: …${m[0].slice(0, 24)}…` });

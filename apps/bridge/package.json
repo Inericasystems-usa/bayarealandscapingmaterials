@@ -5,7 +5,8 @@
   "description": "Local hardware bridge — thermal receipt printing + cash-drawer kick for the counter PC.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "pair": "node index.js --pair"
   },
   "dependencies": {
     "node-thermal-printer": "^4.4.4"

@@ -9,7 +9,7 @@
   },
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "node scripts/assert-not-production.mjs && turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
