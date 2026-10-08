@@ -17,6 +17,12 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ?q= from the home page's catalog search pre-fills the filter.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearchQuery(q.slice(0, 80));
+  }, []);
+
   // Live catalog from the API (the same source the POS edits). Falls back to
   // the bundled catalog if the API is unreachable, so the page always renders.
   const [items, setItems] = useState<Product[]>(STATIC_PRODUCTS);

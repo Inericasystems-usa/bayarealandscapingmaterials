@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 
 // NOTE: Practical template — have your attorney review before relying on it.
 // The "SMS Terms & Conditions" section carries the A2P-10DLC-required
-// disclosures; its wording is shared with the site-wide SMS terms modal via
-// lib/sms-terms so the two can never drift.
+// disclosures; its wording comes from lib/sms-terms, shared with the opt-in
+// checkbox, so the two can never drift. The footer links here (#sms-terms).
 
 const EFFECTIVE = "June 2026";
 
@@ -91,7 +91,7 @@ export default function TermsOfServicePage() {
                 </p>
               </Block>
 
-              <Block title={SMS_TERMS_HEADING}>
+              <Block id="sms-terms" title={SMS_TERMS_HEADING}>
                 <p>
                   By opting in, you agree to receive recurring marketing and delivery/order-notification text
                   messages from {COMPANY.shortName} at the mobile number you provide. Consent is not a condition of
@@ -129,9 +129,9 @@ export default function TermsOfServicePage() {
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+function Block({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div id={id} className="scroll-mt-28">
       <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">
         {title}
       </h2>

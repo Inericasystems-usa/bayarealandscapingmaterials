@@ -6,6 +6,7 @@ import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { Hero } from "@/components/home/Hero";
 import { MaterialShowcase } from "@/components/home/MaterialShowcase";
+import { GoogleReviews } from "@/components/home/GoogleReviews";
 import { SERVICES, HERO_IMAGES } from "@/lib/site-content";
 import footer_img from "@/public/image/home_footer.png"
 import React from "react";
@@ -13,6 +14,9 @@ import React from "react";
 // Self-referencing canonical. Set per route (never on the root layout) so a
 // nested page can't inherit the home page's URL as its own canonical.
 export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+// Re-render daily so the Google reviews band stays current.
+export const revalidate = 86400;
 
 const WHY_US = [
   { t: "Quarried & blended right", d: "Premium base rock, decomposed granite, and custom soil mixes from suppliers we've vetted for over a decade." },
@@ -191,6 +195,9 @@ export default function HomePage() {
               <ArrowUpRight className="h-4 w-4" strokeWidth={2} aria-hidden />
             </a>
           </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <GoogleReviews />
         </div>
       </section>
 

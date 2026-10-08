@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Search } from "lucide-react";
 import { products } from "@/lib/products";
 
 /**
@@ -48,16 +48,36 @@ export function MaterialShowcase() {
               Shop by material
             </h2>
           </div>
-          <Link
-            href="/products"
-            className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-brand)] transition-colors hover:text-[var(--color-action-hover)]"
-          >
-            View full catalog
-            <ArrowUpRight
-              className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </Link>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Catalog search: a plain GET form, so it works before scripts load. */}
+            <form action="/products" method="get" role="search" className="relative">
+              <label htmlFor="home-catalog-search" className="sr-only">
+                Search materials
+              </label>
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]"
+                aria-hidden
+              />
+              <input
+                id="home-catalog-search"
+                name="q"
+                type="search"
+                maxLength={80}
+                placeholder="Search materials, e.g. decomposed granite"
+                className="w-72 max-w-full rounded-full border border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-2.5 pl-9 pr-4 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]"
+              />
+            </form>
+            <Link
+              href="/products"
+              className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-brand)] transition-colors hover:text-[var(--color-action-hover)]"
+            >
+              View full catalog
+              <ArrowUpRight
+                className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Link>
+          </div>
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">

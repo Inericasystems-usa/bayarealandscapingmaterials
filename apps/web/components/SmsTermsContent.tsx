@@ -5,7 +5,7 @@ import type { TermBullet, TermPart } from "@/lib/sms-terms";
 /**
  * Renders the SMS programme bullets from lib/sms-terms.
  *
- * Shared by the Terms of Service page and the SMS terms modal so the two can
+ * Used by the Terms of Service page; one source for the wording means it can
  * never drift — a carrier audit compares what was shown against what was filed.
  * No hooks and no state, so it works in a Server Component and inside the
  * client modal alike.

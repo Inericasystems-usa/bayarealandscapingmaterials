@@ -1,8 +1,8 @@
 import { COMPANY } from "@/lib/company";
 
 /**
- * The SMS / A2P 10DLC programme disclosures — ONE source, rendered by both the
- * Terms of Service page and the site-wide SMS terms modal.
+ * The SMS / A2P 10DLC programme disclosures — ONE source, rendered by the
+ * Terms of Service page (linked from the footer and the opt-in checkbox).
  *
  * COMPLIANCE CONTRACT — read before editing:
  *   1. This is legally supplied wording. Do not paraphrase, shorten or "improve"

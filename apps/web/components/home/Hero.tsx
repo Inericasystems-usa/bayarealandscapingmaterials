@@ -15,13 +15,15 @@ import { COMPANY } from "@/lib/company";
  */
 
 const TRUST = [
-  { icon: Leaf, label: "Family-owned", sub: "Richmond," },
+  { icon: Leaf, label: "Family-owned", sub: "Richmond, CA" },
   { icon: Sprout, label: "10,000+ projects", sub: "supplied to date" },
   { icon: Truck, label: "70-mile radius", sub: "Bay Area delivery" },
   { icon: Clock, label: "Same-day quotes", sub: "online or by phone" },
 ] as const;
 
 const rise = "animate-[fadeUp_0.7s_cubic-bezier(0.2,0,0,1)_both] motion-reduce:animate-none";
+// Headline and photo: visible from the first frame (they are the LCP candidates).
+const lift = "animate-[liftUp_0.7s_cubic-bezier(0.2,0,0,1)_both] motion-reduce:animate-none";
 
 export function Hero() {
   return (
@@ -39,11 +41,11 @@ export function Hero() {
             className={`${rise} inline-flex items-center gap-2 rounded-full border border-[var(--color-moss-200)] bg-[var(--color-bg-elevated)]/80 px-4 py-1.5 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--color-text-brand)] shadow-[var(--shadow-sm)] backdrop-blur`}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-moss-500)]" aria-hidden />
-            Richmond, CA ·
+            Richmond, CA · Open 7 days
           </span>
 
           <h1
-            className={`${rise} mt-4 font-display text-[clamp(2rem,4.4vw,3.7rem)] font-light leading-[1.03] tracking-[-0.02em] text-[var(--color-text-primary)]`}
+            className={`${lift} mt-4 font-display text-[clamp(2rem,4.4vw,3.7rem)] font-light leading-[1.03] tracking-[-0.02em] text-[var(--color-text-primary)]`}
             style={{ animationDelay: "80ms" }}
           >
             Premium soil, mulch, gravel &amp; stone —{" "}
@@ -109,7 +111,7 @@ export function Hero() {
         </div>
 
         {/* ── Image ────────────────────────────────────────────── */}
-        <div className={`${rise} relative`} style={{ animationDelay: "140ms" }}>
+        <div className={`${lift} relative`} style={{ animationDelay: "140ms" }}>
           <div className="relative h-[19vh] min-h-[150px] w-full overflow-hidden rounded-[var(--radius-2xl)] shadow-[var(--shadow-xl)] sm:h-[40vh] lg:h-[clamp(380px,66vh,600px)]">
             <Image
               src={HERO_IMAGES.main}
@@ -125,8 +127,10 @@ export function Hero() {
             />
           </div>
 
-          {/* single grounded info card */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-[var(--radius-lg)] border border-white/15 bg-[var(--color-moss-950)]/80 px-4 py-2.5 text-white backdrop-blur-md sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-xs">
+          {/* single grounded info card. The backing is a literal rgba (moss-950 at
+              85%): an opacity modifier on a CSS-variable colour compiles to
+              color-mix(), which Firefox and WebKit rendered almost transparent. */}
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-[var(--radius-lg)] border border-white/15 bg-[rgba(8,23,16,0.85)] px-4 py-2.5 text-white backdrop-blur-md sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-xs">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15">
               <Truck className="h-4 w-4" strokeWidth={1.75} aria-hidden />
             </span>

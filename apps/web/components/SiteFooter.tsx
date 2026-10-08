@@ -115,6 +115,12 @@ export function SiteFooter() {
             >
               Terms of Service
             </Link>
+            <Link
+              href="/terms-of-service#sms-terms"
+              className="text-[var(--color-moss-300)] transition-colors hover:text-[var(--color-moss-200)]"
+            >
+              SMS Terms
+            </Link>
             <CookieSettingsButton className="cursor-pointer text-[var(--color-moss-300)] transition-colors hover:text-[var(--color-moss-200)]" />
           </nav>
         </div>

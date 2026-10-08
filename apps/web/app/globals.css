@@ -21,6 +21,18 @@
   }
 }
 
+/* The same rise without the fade, for the hero headline and photo: an element
+   that starts at opacity 0 does not count as painted until it is visible, which
+   pushed the page's Largest Contentful Paint back by the whole animation. */
+@keyframes liftUp {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* POS tablet mode — enlarges the whole register for touch screens */
 .pos-tablet {
   zoom: 1.15;
