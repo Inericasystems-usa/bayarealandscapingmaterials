@@ -76,7 +76,7 @@ defineModel(
   "payments",
   {
     amount: Number, method: String, provider: String, status: String, reference: String,
-    saleId: String, authCode: String, cardBrand: String, last4: String, entryMode: String,
+    saleId: String, authCode: String, cardBrand: String, last4: String, entryMode: String, deviceId: String,
   },
   [{ saleId: 1 }, { status: 1 }],
 );
@@ -129,6 +129,10 @@ defineModel(
   {
     name: String, email: String, role: String, phone: String,
     pinHash: String, passwordHash: String, active: Boolean, permissions: M,
+    // Two-step sign-in (modules/users.ts): the authenticator secret encrypted at
+    // rest, the last code step used (no code works twice), recovery codes as
+    // SHA-256 digests. None of these ever leave the API.
+    mfaEnabled: Boolean, mfaSecret: String, mfaLastStep: Number, mfaRecoveryHashes: [String], mfaEnrolledAt: String,
   },
   // E-mails are stored trimmed and lower-cased (normalizeEmail in modules/users.ts).
   [[{ email: 1 }, { unique: true }], { role: 1 }],
@@ -137,10 +141,32 @@ defineModel(
 // Sessions keep only a hash of the token (modules/users.ts). `expireAt` is the
 // moment the session ends (the earlier of its absolute and idle limits), a BSON
 // Date so MongoDB's TTL monitor deletes it; sign-in refuses it before then.
+// `mfa` is true when the sign-in included a second step.
 defineModel(
   "sessions",
-  { tokenHash: String, userId: String, expiresAt: String, lastSeenAt: String, expireAt: Date },
+  { tokenHash: String, userId: String, expiresAt: String, lastSeenAt: String, expireAt: Date, mfa: Boolean },
   [{ tokenHash: 1 }, { userId: 1 }, [{ expireAt: 1 }, { expireAfterSeconds: 0 }]],
+);
+
+// A sign-in waiting for its second step (or for enrolment): a hash of the
+// one-time challenge token, five minutes to live. `secret` is the authenticator
+// secret being enrolled, encrypted at rest.
+defineModel(
+  "mfa_challenges",
+  { tokenHash: String, userId: String, failKey: String, purpose: String, secret: String, expiresAt: String, expireAt: Date },
+  [{ tokenHash: 1 }, { userId: 1 }, [{ expireAt: 1 }, { expireAfterSeconds: 0 }]],
+);
+
+// Counter-PC bridges paired to sign terminal results (lib/terminal-signature.ts).
+// `secret` is the shared HMAC key, encrypted at rest.
+defineModel("terminal_devices", { name: String, secret: String, active: Boolean, lastUsedAt: String, revokedAt: String });
+
+// Terminal results already recorded, by a digest of their signature, so one
+// can't be sent twice. Kept until well after the signature itself expires.
+defineModel(
+  "terminal_receipts",
+  { deviceId: String, saleId: String, reference: String, expireAt: Date },
+  [[{ expireAt: 1 }, { expireAfterSeconds: 0 }]],
 );
 
 // Sign-in attempts per account (keyed by a hash of the address) and any lockout.

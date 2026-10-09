@@ -1,11 +1,13 @@
 import { Router } from "express";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { z } from "zod";
 import { Collection, newId, type Entity } from "../lib/store.js";
 import { hashPassword, verifyPassword, newToken, hashToken } from "../lib/crypto.js";
 import rateLimit from "express-rate-limit";
-import { isDev } from "../config.js";
+import { isDev, mfaOptional } from "../config.js";
 import { recordAudit } from "./audit.js";
+import { decryptField, encryptField } from "../lib/encryption.js";
+import { matchTotp, newRecoveryCodes, newTotpSecret, normalizeRecoveryCode, otpauthUri } from "../lib/totp.js";
 
 export const SESSION_COOKIE = "balm_session";
 // Double-submit CSRF token. Readable by JS (NOT httpOnly) so the client echoes
@@ -35,6 +37,13 @@ export interface User extends Entity {
   // Explicit allow-list of feature keys that OVERRIDES the role defaults.
   // null = use the role's default permission set.
   permissions: string[] | null;
+  // Two-step sign-in (TOTP). The secret is encrypted at rest (lib/encryption.ts)
+  // and, like the recovery-code digests and the last step, never leaves the API.
+  mfaEnabled?: boolean;
+  mfaSecret?: string;
+  mfaLastStep?: number; // the newest 30-second step a code was accepted for
+  mfaRecoveryHashes?: string[]; // hashToken() of each unused recovery code
+  mfaEnrolledAt?: string;
 }
 
 interface Session extends Entity {
@@ -46,6 +55,7 @@ interface Session extends Entity {
   // as a Date for MongoDB's TTL index. The TTL monitor runs about once a
   // minute, so userForToken checks the limits itself as well.
   expireAt?: Date;
+  mfa?: boolean; // the sign-in included a second step (TOTP or recovery code)
 }
 
 // Absolute session lifetime. A POS shift fits comfortably; staff re-login daily.
@@ -57,11 +67,24 @@ const TOUCH_MS = 60 * 1000;
 export const users = new Collection<User>("users");
 export const sessions = new Collection<Session>("sessions");
 
-export type PublicUser = Omit<User, "passwordHash" | "pinHash">;
+// What leaves the API about an account: no password, PIN or authenticator
+// secrets, only whether two-step sign-in is set up.
+const SECRET_FIELDS = ["passwordHash", "pinHash", "mfaSecret", "mfaLastStep", "mfaRecoveryHashes"] as const;
+export type PublicUser = Omit<User, (typeof SECRET_FIELDS)[number]>;
 const publicUser = (u: User): PublicUser => {
-  const { passwordHash: _p, pinHash: _pin, ...rest } = u;
-  return rest;
+  const rest: Record<string, unknown> = { ...u };
+  for (const f of SECRET_FIELDS) delete rest[f];
+  return { ...(rest as PublicUser), mfaEnabled: Boolean(u.mfaEnabled) };
 };
+
+// Admins and managers sign in with a password and a code from an authenticator
+// app (PCI DSS 8.4.2). In production there is no way round it; development and
+// tests may set MFA_OPTIONAL_IN_DEVELOPMENT=true (config.ts).
+const MFA_ROLES: readonly Role[] = ["admin", "manager"];
+/** True when this account's sessions must have passed a second step. */
+export const mfaRequiredFor = (u: Pick<User, "role">): boolean => MFA_ROLES.includes(u.role) && !mfaOptional();
+// Anyone with an authenticator set up is asked for a code, required or not.
+const needsSecondStep = (u: User): boolean => Boolean(u.mfaEnabled) || mfaRequiredFor(u);
 
 /** How e-mails are stored and compared: trimmed and lower-cased. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
@@ -97,7 +120,14 @@ export async function userForToken(
     await sessions.update(session.id, { lastSeenAt, expireAt: sessionEnd(session.expiresAt, lastSeenAt) });
   }
   const user = await users.find(session.userId);
-  return user && user.active ? user : null;
+  if (!user || !user.active) return null;
+  // A session without a second step (from before two-step sign-in, or from
+  // before this account became a manager) ends once the account needs one.
+  if (mfaRequiredFor(user) && !session.mfa) {
+    await sessions.remove(session.id);
+    return null;
+  }
+  return user;
 }
 
 // A Bearer token (tools/API, the web's in-memory copy) wins over the HttpOnly
@@ -255,24 +285,236 @@ authRoutes.post(
       if (attempt >= MAX_FAILS) await lock(failKey, n);
       return res.status(401).json({ error: { code: "bad_credentials", message: "Invalid email or password/PIN." } });
     }
+    // Password right, second step still to come: no session yet, only a
+    // challenge that can do nothing but finish this sign-in (or enrol). The
+    // attempt window stays open, so wrong codes count with wrong passwords.
+    if (needsSecondStep(user)) {
+      const purpose = user.mfaEnabled ? "verify" : "enrol";
+      const challenge = await openChallenge(user, failKey, purpose);
+      return res.json({ data: { mfa: purpose, ...challenge } });
+    }
     await loginFailures.bump(failKey, { max: { base: n } }); // a success starts a fresh window
-    const token = newToken();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
-    await sessions.insert({
-      id: newId("sess"),
-      tokenHash: hashToken(token),
-      userId: user.id,
-      expiresAt,
-      lastSeenAt: now.toISOString(),
-      expireAt: sessionEnd(expiresAt, now.toISOString()),
-    });
-    // HttpOnly cookie = the token never has to live in JS-readable storage.
-    res.cookie(SESSION_COOKIE, token, sessionCookieOpts());
-    res.cookie(CSRF_COOKIE, newToken(), csrfCookieOpts());
-    return res.json({ data: { token, user: publicUser(user) } });
+    return res.json({ data: await startSession(res, user, false) });
   },
 );
+
+/** Create a session for `user`, set its cookies, and return what the client gets. */
+async function startSession(res: Response, user: User, mfa: boolean): Promise<{ token: string; user: PublicUser }> {
+  const token = newToken();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
+  await sessions.insert({
+    id: newId("sess"),
+    tokenHash: hashToken(token),
+    userId: user.id,
+    expiresAt,
+    lastSeenAt: now.toISOString(),
+    expireAt: sessionEnd(expiresAt, now.toISOString()),
+    mfa,
+  });
+  // HttpOnly cookie = the token never has to live in JS-readable storage.
+  res.cookie(SESSION_COOKIE, token, sessionCookieOpts());
+  res.cookie(CSRF_COOKIE, newToken(), csrfCookieOpts());
+  return { token, user: publicUser(user) };
+}
+
+// ── Second step (/api/v1/auth/mfa/*) ─────────────────────────────────
+// A correct password for an admin or manager opens a challenge: a random token
+// (stored hashed) that lives five minutes and is good only for these routes.
+// "enrol" when the account has no authenticator yet, "verify" when it has.
+const CHALLENGE_MS = 5 * 60 * 1000;
+const ISSUER = "Bay Area Landscaping Materials";
+type ChallengePurpose = "verify" | "enrol";
+interface MfaChallenge extends Entity {
+  tokenHash: string;
+  userId: string;
+  failKey: string; // the sign-in lockout row, so wrong codes count with wrong passwords
+  purpose: ChallengePurpose;
+  secret?: string; // the authenticator secret being enrolled, encrypted
+  expiresAt: string;
+  expireAt?: Date; // for MongoDB's TTL index
+}
+const challenges = new Collection<MfaChallenge>("mfa_challenges");
+
+async function openChallenge(user: User, failKey: string, purpose: ChallengePurpose): Promise<{ challenge: string; expiresAt: string }> {
+  await challenges.removeWhere({ userId: user.id }); // one pending sign-in per account
+  const token = newToken();
+  const expireAt = new Date(Date.now() + CHALLENGE_MS);
+  await challenges.insert({
+    id: newId("mfa"),
+    tokenHash: hashToken(token),
+    userId: user.id,
+    failKey,
+    purpose,
+    expiresAt: expireAt.toISOString(),
+    expireAt,
+  });
+  return { challenge: token, expiresAt: expireAt.toISOString() };
+}
+
+const EXPIRED = { code: "mfa_expired", message: "That sign-in has expired. Sign in again." };
+const WRONG_CODE = { code: "bad_code", message: "That code isn't right. Try the current code from your authenticator app." };
+const LOCKED = { code: "locked", message: "Too many attempts. Try again in 30 minutes." };
+
+/** The live challenge for `token` with its active user, or null (expired ones are removed). */
+async function liveChallenge(token: string, purpose: ChallengePurpose): Promise<{ challenge: MfaChallenge; user: User } | null> {
+  const challenge = await challenges.findOne({ tokenHash: hashToken(token) });
+  if (!challenge) return null;
+  if (!(Date.parse(challenge.expiresAt) > Date.now())) {
+    await challenges.remove(challenge.id);
+    return null;
+  }
+  if (challenge.purpose !== purpose) return null;
+  const user = await users.find(challenge.userId);
+  return user && user.active ? { challenge, user } : null;
+}
+
+/**
+ * Check one code against the sign-in lockout: like a password attempt, each
+ * code is numbered atomically before it is checked, and MAX_FAILS wrong ones
+ * (passwords and codes together) lock the account for 30 minutes.
+ */
+async function attemptCode<T>(failKey: string, check: () => Promise<T | null>): Promise<{ ok: T } | { refused: "locked" | "wrong" }> {
+  if (lockedNow(await loginFailures.find(failKey))) return { refused: "locked" };
+  const tries = await loginFailures.bump(failKey, { inc: { count: 1 } });
+  const n = tries.count;
+  const attempt = n - (tries.base ?? 0);
+  if (lockedNow(tries) || attempt > MAX_FAILS) {
+    await lock(failKey, n);
+    return { refused: "locked" };
+  }
+  const ok = await check();
+  if (ok === null) {
+    if (attempt >= MAX_FAILS) await lock(failKey, n);
+    return { refused: "wrong" };
+  }
+  await loginFailures.bump(failKey, { max: { base: n } }); // a full sign-in starts a fresh window
+  return { ok };
+}
+
+const refusal = (res: Response, why: "locked" | "wrong") =>
+  why === "locked" ? res.status(429).json({ error: LOCKED }) : res.status(401).json({ error: WRONG_CODE });
+
+// The stored secret, or null if it can't be read (a changed DATA_ENCRYPTION_KEY).
+const readSecret = (stored: string | undefined): string | null => {
+  const secret = stored ? decryptField(stored) : "";
+  return /^[A-Z2-7]{16,}$/.test(secret) ? secret : null;
+};
+
+/**
+ * Accept a TOTP code once: the step is claimed in the same write that checks
+ * it is newer than the last one, so the same code sent twice (even at the same
+ * moment) signs in only once.
+ */
+async function claimTotp(user: User, code: string): Promise<number | null> {
+  const secret = readSecret(user.mfaSecret);
+  if (!secret) return null;
+  const step = matchTotp(secret, code, user.mfaLastStep);
+  if (step === null) return null;
+  const claimed = await users.updateIf(
+    user.id,
+    { mfaEnabled: true, $or: [{ mfaLastStep: { $lt: step } }, { mfaLastStep: null }] },
+    { set: { mfaLastStep: step } },
+  );
+  return claimed ? step : null;
+}
+
+/** Use up one recovery code (removed in the same write that finds it). */
+async function claimRecoveryCode(user: User, code: string): Promise<"recovery" | null> {
+  const clean = normalizeRecoveryCode(code);
+  if (!clean) return null;
+  const digest = hashToken(clean);
+  const claimed = await users.updateIf(user.id, { mfaEnabled: true, mfaRecoveryHashes: digest }, { pull: { mfaRecoveryHashes: digest } });
+  return claimed ? "recovery" : null;
+}
+
+const mfaLimiter = rateLimit({ windowMs: 60_000, max: process.env.VITEST ? 1000 : 10 });
+const challengeBody = z.object({ challenge: z.string().min(1).max(200) });
+const codeBody = challengeBody.extend({ code: z.string().min(1).max(40) });
+const typed = (code: string): string => code.replace(/\s/g, "");
+
+// Enrolment, step 1: a new authenticator secret for this pending sign-in, as
+// an otpauth:// link (the POS draws it as a QR code) and as a key to type in.
+// Shown only while enrolling; once confirmed it never leaves the API again.
+authRoutes.post("/mfa/enrol", mfaLimiter, async (req, res) => {
+  const parsed = challengeBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: "challenge is required" } });
+  const live = await liveChallenge(parsed.data.challenge, "enrol");
+  if (!live) return res.status(401).json({ error: EXPIRED });
+  let stored = live.challenge.secret;
+  if (!stored) {
+    // Set only while still unset, so two parallel calls agree on one secret.
+    const set = await challenges.updateIf(live.challenge.id, { secret: null }, { set: { secret: encryptField(newTotpSecret()) } });
+    stored = (set ?? (await challenges.find(live.challenge.id)))?.secret;
+  }
+  const secret = readSecret(stored);
+  if (!secret) return res.status(401).json({ error: EXPIRED });
+  res.setHeader("cache-control", "no-store");
+  return res.json({ data: { otpauthUri: otpauthUri(ISSUER, live.user.email, secret), secret, issuer: ISSUER, account: live.user.email } });
+});
+
+// Enrolment, step 2: a valid code from the new authenticator turns two-step
+// sign-in on, issues ten single-use recovery codes (shown this once, stored as
+// digests) and completes the sign-in.
+authRoutes.post("/mfa/enrol/confirm", mfaLimiter, async (req, res) => {
+  const parsed = codeBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: "challenge and code are required" } });
+  const live = await liveChallenge(parsed.data.challenge, "enrol");
+  const secret = readSecret(live?.challenge.secret);
+  if (!live || !secret) return res.status(401).json({ error: EXPIRED });
+  const code = typed(parsed.data.code);
+  const result = await attemptCode(live.challenge.failKey, async () => matchTotp(secret, code, null));
+  if ("refused" in result) {
+    if (result.refused === "locked") await challenges.remove(live.challenge.id);
+    return refusal(res, result.refused);
+  }
+  const recoveryCodes = newRecoveryCodes();
+  const enrolled = await users.updateIf(
+    live.user.id,
+    { mfaEnabled: { $ne: true } },
+    {
+      set: {
+        mfaEnabled: true,
+        mfaSecret: encryptField(secret),
+        mfaLastStep: result.ok, // this code can't be used again to sign in
+        mfaRecoveryHashes: recoveryCodes.map((c) => hashToken(normalizeRecoveryCode(c) ?? c)),
+        mfaEnrolledAt: new Date().toISOString(),
+      },
+    },
+  );
+  await challenges.remove(live.challenge.id);
+  if (!enrolled) return res.status(409).json({ error: { code: "mfa_already_enrolled", message: "Two-step sign-in is already set up. Sign in again." } });
+  await recordAudit(enrolled, "user.mfa.enrol", `Set up two-step sign-in for ${enrolled.email}`, { targetId: enrolled.id });
+  res.setHeader("cache-control", "no-store");
+  return res.json({ data: { ...(await startSession(res, enrolled, true)), recoveryCodes } });
+});
+
+// Sign-in, second step: a current code from the authenticator, or one unused
+// recovery code.
+authRoutes.post("/mfa/verify", mfaLimiter, async (req, res) => {
+  const parsed = codeBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: "challenge and code are required" } });
+  const live = await liveChallenge(parsed.data.challenge, "verify");
+  if (!live || !live.user.mfaEnabled) return res.status(401).json({ error: EXPIRED });
+  const user = live.user;
+  const code = typed(parsed.data.code);
+  const result = await attemptCode<number | "recovery">(live.challenge.failKey, () =>
+    /^\d{6}$/.test(code) ? claimTotp(user, code) : claimRecoveryCode(user, code),
+  );
+  if ("refused" in result) {
+    if (result.refused === "locked") await challenges.remove(live.challenge.id);
+    return refusal(res, result.refused);
+  }
+  await challenges.remove(live.challenge.id);
+  const fresh = (await users.find(user.id)) ?? user;
+  const recoveryCodesLeft = fresh.mfaRecoveryHashes?.length ?? 0;
+  if (result.ok === "recovery")
+    await recordAudit(fresh, "user.mfa.recovery_used", `Signed in with a recovery code (${recoveryCodesLeft} left)`, {
+      targetId: fresh.id,
+      left: recoveryCodesLeft,
+    });
+  return res.json({ data: { ...(await startSession(res, fresh, true)), recoveryCodesLeft } });
+});
 
 authRoutes.post("/logout", async (req, res) => {
   const token = requestToken(req);
@@ -424,6 +666,45 @@ usersRoutes.delete("/:id", async (req, res) => {
   if (!updated) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
   await recordAudit(me, "user.deactivate", `Deactivated ${updated.email}`, { targetId: updated.id });
   return res.json({ data: publicUser(updated) });
+});
+
+const MFA_FIELDS = ["mfaSecret", "mfaLastStep", "mfaRecoveryHashes", "mfaEnrolledAt"] as const;
+
+// Turn two-step sign-in off for your own account: only with a current code from
+// the authenticator (a recovery code won't do), so a session left open on a
+// counter can't strip it. Wrong codes count towards the sign-in lockout.
+usersRoutes.post("/me/mfa/remove", async (req, res) => {
+  const me = await getAuthUser(req);
+  if (!me) return res.status(401).json({ error: { code: "unauthorized", message: "Not signed in." } });
+  if (!me.mfaEnabled) return res.status(409).json({ error: { code: "mfa_not_enrolled", message: "Two-step sign-in isn't set up." } });
+  const parsed = z.object({ code: z.string().min(1).max(40) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: { code: "invalid", message: "code is required" } });
+  const code = typed(parsed.data.code);
+  const result = await attemptCode(hashToken(normalizeEmail(me.email)), () => claimTotp(me, code));
+  if ("refused" in result) return refusal(res, result.refused);
+  const updated = await users.update(me.id, { mfaEnabled: false }, { unset: [...MFA_FIELDS] });
+  await recordAudit(me, "user.mfa.remove", `Turned off two-step sign-in for ${me.email}`, { targetId: me.id });
+  return res.json({ data: updated ? publicUser(updated) : null });
+});
+
+// An admin resets someone else's two-step sign-in (a lost phone): their
+// authenticator and recovery codes are deleted and their sessions end, so they
+// set up a new authenticator at their next sign-in. Audited. Nobody resets
+// their own this way.
+usersRoutes.post("/:id/mfa/reset", async (req, res) => {
+  const me = await getAuthUser(req);
+  if (!me || me.role !== "admin") return res.status(403).json({ error: { code: "forbidden", message: "Admins only." } });
+  const target = await users.find(id_of(req));
+  if (!target) return res.status(404).json({ error: { code: "not_found", message: "User not found" } });
+  if (target.id === me.id)
+    return res.status(409).json({
+      error: { code: "own_account", message: "To turn off your own two-step sign-in, use a current code from your authenticator." },
+    });
+  const updated = await users.update(target.id, { mfaEnabled: false }, { unset: [...MFA_FIELDS] });
+  await sessions.removeWhere({ userId: target.id });
+  await challenges.removeWhere({ userId: target.id });
+  await recordAudit(me, "user.mfa.reset", `Reset two-step sign-in for ${target.email}`, { targetId: target.id });
+  return res.json({ data: updated ? publicUser(updated) : null });
 });
 
 function id_of(req: Request): string {

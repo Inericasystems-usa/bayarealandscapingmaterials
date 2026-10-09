@@ -59,6 +59,47 @@ For the desktop app, start it once with the link instead:
 To rotate the token: delete the `BRIDGE_TOKEN` line from `apps/bridge/.env`,
 run `pnpm run pair`, restart the bridge and open the new link.
 
+## Terminal results (pairing with the API)
+
+The browser carries each card result from the bridge to the API, so the
+bridge signs it: HMAC-SHA256 (`signing.js`) over the sale id, amount in cents,
+currency, the terminal's transaction id, the result (approved or declined),
+auth code, card brand, last 4, entry mode and the time. The API records a
+Terminal payment only with a valid signature from a paired bridge, for that
+sale and its order total, signed less than 5 minutes ago, and only once.
+Outside development unsigned results are refused, and so are simulated ones.
+
+The signing secret is shared only by this bridge and the API. It lives in this
+PC's `apps/bridge/.env`, never in the browser or the website build (the bridge
+token above is a different value and is the only one the browser holds).
+
+1. On the server, from the live release (see `deploy/DEPLOY.md`, section 4.1):
+
+   ```bash
+   cd /var/www/bayarealandscapingmaterials.com-releases/current/apps/api
+   node --import tsx src/scripts/terminal-devices.ts pair "Counter 1"
+   ```
+
+   It prints `TERMINAL_DEVICE_ID=…` and `TERMINAL_SIGNING_SECRET=…` once.
+2. Add those two lines to `apps/bridge/.env` on this PC. Do not email or
+   chat them; carry them over the SSH session or type them.
+3. Restart the bridge. Its start-up output says
+   `terminal results signed as tdev_…`, and `/pay/status` reports
+   `signing: true`.
+
+Until it is paired, a bridge with a live terminal (`datacap`, `elavon`)
+refuses `/pay/sale` before the card is taken, so no card is charged for a sale
+the store couldn't record. Unpaired, the simulator (`sim`) still answers with
+unsigned results, which only a development API accepts. Keep the PC's clock synced (Windows time service): results over
+5 minutes old, or more than a minute ahead of the server, are refused.
+
+To replace a PC or rotate the secret: `terminal-devices.ts revoke <id>` on the
+server, then pair again and update `apps/bridge/.env`. `terminal-devices.ts
+list` shows each paired bridge and when it last signed a result.
+
+`pnpm test` (Node's built-in runner) checks the signing and the payment routes
+against a simulated terminal; it needs no printer or terminal.
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -67,7 +108,7 @@ run `pnpm run pair`, restart the bridge and open the new link.
 | POST | `/kick` | pop the cash drawer (ESC/POS pulse via the printer) |
 | POST | `/print` | print a receipt `{ store, address, number, lines[], total, kick }` |
 | GET | `/pay/status` | payment-terminal provider + mode |
-| POST | `/pay/sale` | run a card sale `{ amount, reference? }` → `{ approved, authCode, cardBrand, last4, entryMode, reference }` |
+| POST | `/pay/sale` | run a card sale `{ amount, saleId, currency?, reference? }` → `{ approved, authCode, cardBrand, last4, entryMode, reference, saleId, currency, signature }` (signature once paired) |
 | POST | `/pay/void` | void a prior sale `{ reference }` |
 
 ## How the POS uses it
@@ -102,6 +143,8 @@ TERMINAL_MERCHANT_ID=          # Datacap MerchantID
 TERMINAL_OPERATOR=POS          # OperatorID shown on Datacap reports
 TERMINAL_ENDPOINT=             # gateway URL (Datacap DC Direct / NETePay Hosted), https
 TERMINAL_SECRET=               # API key / token from the processor
+TERMINAL_DEVICE_ID=            # from pairing with the API (Terminal results, above)
+TERMINAL_SIGNING_SECRET=       # from pairing with the API; this PC only
 ```
 
 - `TERMINAL_ENDPOINT` must be https. Plain http is accepted only for a device
@@ -109,8 +152,8 @@ TERMINAL_SECRET=               # API key / token from the processor
 - Gateway errors reach the browser as `gateway error (<status>)` only; the raw
   reply is logged on this PC with anything shaped like a card number masked.
 - **`sim`** approves every sale after ~1.5 s with fake card metadata — use it to
-  build and demo end-to-end. Never on a live register: the POS records it as
-  `elavon_sim` and no card is charged.
+  build and demo end-to-end. Never on a live register: no card is charged, and
+  outside development the API refuses to record it.
 - **`datacap`** is **pre-built** to Datacap's DC Direct JSON contract (the most
   common Elavon semi-integration). Set `TERMINAL_PROVIDER=datacap`,
   `TERMINAL_ENDPOINT`, `TERMINAL_ID`, `TERMINAL_MERCHANT_ID`, and (if required)

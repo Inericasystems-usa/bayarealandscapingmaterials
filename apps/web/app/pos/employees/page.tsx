@@ -10,6 +10,8 @@ import {
   Mail,
   Phone,
   KeyRound,
+  ShieldCheck,
+  ShieldOff,
   X,
 } from "lucide-react";
 import { Button } from "@balm/ui";
@@ -163,6 +165,19 @@ export default function EmployeesPage() {
     }
   }
 
+  // Lost phone: clear their authenticator; they set up a new one at next
+  // sign-in. Admins only, never their own (the API audits and enforces both).
+  async function resetMfa(u: AuthUser) {
+    if (!window.confirm(`Reset two-step sign-in for ${u.name}? They are signed out and set up their authenticator again at next sign-in.`))
+      return;
+    try {
+      await api.resetUserMfa(u.id);
+      await load();
+    } catch (err) {
+      setError(friendlyError(err));
+    }
+  }
+
   async function deactivate(u: AuthUser) {
     if (!window.confirm(`Deactivate ${u.name}'s account? They won't be able to sign in.`))
       return;
@@ -308,6 +323,18 @@ export default function EmployeesPage() {
                             Inactive
                           </span>
                         )}
+                        {u.mfaEnabled ? (
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
+                            <ShieldCheck className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                            Two-step on
+                          </span>
+                        ) : (
+                          (u.role === "admin" || u.role === "manager") && (
+                            <span className="mt-0.5 block text-xs text-[var(--color-text-muted)]">
+                              Two-step set up at next sign-in
+                            </span>
+                          )
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
@@ -320,6 +347,16 @@ export default function EmployeesPage() {
                           >
                             <Pencil className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                           </button>
+                          {user?.role === "admin" && u.id !== user.id && u.mfaEnabled && (
+                            <button
+                              onClick={() => resetMfa(u)}
+                              aria-label={`Reset two-step sign-in for ${u.name}`}
+                              title="Reset two-step sign-in"
+                              className="grid h-7 w-7 place-items-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-danger)]"
+                            >
+                              <ShieldOff className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                            </button>
+                          )}
                           {u.active && (
                             <button
                               onClick={() => deactivate(u)}

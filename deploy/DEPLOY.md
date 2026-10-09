@@ -251,6 +251,64 @@ On each counter PC, follow `apps/bridge/README.md`: update the bridge files,
 browser the register uses (signed in to the POS on the apex address). The
 bridge refuses to start without its token and only answers the POS origin.
 
+### 4.1 Pair each bridge with the API (signed terminal results)
+
+The API records a Terminal (Elavon/Datacap) card payment only with the
+bridge's HMAC-SHA256 signature over the sale, amount, currency, terminal
+transaction id, result and time; unsigned, altered, replayed or more than 5
+minutes old results are refused, and a live terminal on an unpaired bridge
+takes no card. Pair each counter PC once, on the server (it reads
+`apps/api/.env`, so the secret is stored encrypted with `DATA_ENCRYPTION_KEY`):
+
+```bash
+cd /var/www/bayarealandscapingmaterials.com-releases/current/apps/api
+node --import tsx src/scripts/terminal-devices.ts pair "Counter 1"
+```
+
+It prints two lines, shown this once:
+
+```
+TERMINAL_DEVICE_ID=tdev_xxxxxxxx
+TERMINAL_SIGNING_SECRET=<64 hex characters>
+```
+
+Add both to that counter PC's `apps/bridge/.env` (and nowhere else: not the
+browser, not `web.env`, not email or chat; carry them over the SSH session or
+type them), restart the bridge, and check its start-up line says
+`terminal results signed as tdev_…`. One pairing per counter PC.
+
+- `node --import tsx src/scripts/terminal-devices.ts list` shows the paired
+  bridges and when each last signed a result (never the secrets).
+- `node --import tsx src/scripts/terminal-devices.ts revoke tdev_xxxxxxxx`
+  stops accepting a bridge (a replaced or lost PC); pair the new PC afresh.
+- The counter PC's clock must be right (Windows time sync on): results signed
+  more than 5 minutes ago, or over a minute in the future, are refused.
+- If the register shows a refusal after the card was approved, it voids the
+  charge on the terminal; check the terminal's batch if the void also failed.
+
+### 4.2 Two-step sign-in for admins and managers
+
+Admins and managers sign in with their password **and** a 6-digit code from
+an authenticator app (PCI DSS 8.4.2). In production there is no switch to turn
+this off: `MFA_OPTIONAL_IN_DEVELOPMENT` is ignored when `NODE_ENV=production`,
+and the API refuses to start with it on a host marked production (section 6).
+
+- At their first sign-in after this release each admin and manager scans a QR
+  code (drawn in the browser, never sent anywhere) with Google Authenticator,
+  Microsoft Authenticator, 1Password or similar, confirms one code, and gets 10
+  single-use recovery codes, shown once. Their existing sessions end.
+- A wrong code counts towards the same lockout as a wrong password (5 tries,
+  then 30 minutes). A pending sign-in expires after 5 minutes; a code works
+  once.
+- Lost phone: another admin opens POS > Employees and uses **Reset two-step
+  sign-in** on that person (audited as `user.mfa.reset`); they set up a new
+  authenticator at their next sign-in. Nobody can reset their own; turning
+  your own off needs a current code.
+- Keep two admin accounts, each with its own authenticator, so one lost phone
+  never locks the store out. If the only admin loses both phone and recovery
+  codes, clear it from the server (audited by hand, note it in the change log):
+  `mongosh --nodb --quiet --eval 'printjson(connect(process.env.BALM_DB).users.updateOne({email:"<admin e-mail>"},{$set:{mfaEnabled:false},$unset:{mfaSecret:"",mfaLastStep:"",mfaRecoveryHashes:"",mfaEnrolledAt:""}}))'`
+
 ## 5. Checks
 
 From any computer:

@@ -35,6 +35,14 @@ describe("startup refusals", () => {
     expect(startupProblems({ NODE_ENV: "production" }, KEY, true)).toEqual([]);
   });
 
+  it("refuse the development-only MFA switch on a production host", () => {
+    const flag = { ...KEY, MFA_OPTIONAL_IN_DEVELOPMENT: "true" };
+    expect(startupProblems({ NODE_ENV: "production" }, flag, true)).toEqual([expect.stringContaining("MFA_OPTIONAL_IN_DEVELOPMENT")]);
+    // Elsewhere it is simply ignored in production (mfaOptional), and allowed in development.
+    expect(startupProblems({ NODE_ENV: "production" }, flag, false)).toEqual([]);
+    expect(startupProblems({ NODE_ENV: "development" }, flag, false)).toEqual([]);
+  });
+
   it("refuse production without a data encryption key, or with a placeholder one", () => {
     const missing = startupProblems({ NODE_ENV: "production" }, {}, false);
     expect(missing).toEqual([expect.stringContaining("DATA_ENCRYPTION_KEY")]);

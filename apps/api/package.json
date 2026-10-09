@@ -13,7 +13,8 @@
     "test": "vitest run",
     "clean": "rimraf dist .turbo",
     "migrate:uploads": "node --import tsx src/scripts/migrate-uploads.ts",
-    "encrypt:fields": "node --import tsx src/scripts/encrypt-fields.ts"
+    "encrypt:fields": "node --import tsx src/scripts/encrypt-fields.ts",
+    "terminal:devices": "node --import tsx src/scripts/terminal-devices.ts"
   },
   "dependencies": {
     "@balm/lib-domain": "workspace:*",

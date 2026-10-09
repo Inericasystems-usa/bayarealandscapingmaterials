@@ -28,6 +28,11 @@ process.env.ADMIN_PASSWORD = ADMIN_PW;
 process.env.ADMIN_PIN = "8642";
 process.env.DEMO_PASSWORD = DEMO_PW;
 delete process.env.ALLOW_PIN_LOGIN;
+// Admins and managers sign in here with a password alone, so the suite needn't
+// make authenticator codes for every sign-in. Two-step sign-in itself, with the
+// requirement on, is tested in mfa.test.ts; that production ignores this flag
+// is checked below (session cookies).
+process.env.MFA_OPTIONAL_IN_DEVELOPMENT = "true";
 delete process.env.RC_CLIENT_ID;
 delete process.env.RC_JWT;
 delete process.env.STRIPE_SECRET_KEY;
@@ -614,7 +619,7 @@ describe("session cookies", () => {
     expect(csrf).not.toMatch(/HttpOnly/i); // read by the web for the double-submit header
   });
 
-  it("are Secure when NODE_ENV is unset or production (a fresh API process)", async () => {
+  it("are Secure when NODE_ENV is unset or production, where admins always need a second step (a fresh API process)", async () => {
     const url = (f: string) => JSON.stringify(pathToFileURL(path.join(here, f)).href);
     const supertestUrl = JSON.stringify(pathToFileURL(createRequire(import.meta.url).resolve("supertest")).href);
     const script = `
@@ -622,16 +627,25 @@ describe("session cookies", () => {
       await initDb();
       const { buildServer } = await import(${url("server.ts")});
       const request = (await import(${supertestUrl})).default;
-      const res = await request(buildServer()).post("/api/v1/auth/login").send({ email: ${JSON.stringify(ADMIN)}, password: ${JSON.stringify(ADMIN_PW)} });
-      console.log(JSON.stringify({ status: res.status, cookies: res.headers["set-cookie"] ?? [] }));
+      const server = buildServer();
+      const res = await request(server).post("/api/v1/auth/login").send({ email: "cashier@balm.local", password: ${JSON.stringify(DEMO_PW)} });
+      const admin = await request(server).post("/api/v1/auth/login").send({ email: ${JSON.stringify(ADMIN)}, password: ${JSON.stringify(ADMIN_PW)} });
+      console.log(JSON.stringify({ status: res.status, cookies: res.headers["set-cookie"] ?? [], admin: admin.body.data?.mfa ?? (admin.body.data?.token ? "session" : admin.status), adminCookies: admin.headers["set-cookie"] ?? [] }));
       await closeDb();
       process.exit(0);`;
     const cwd = mkdtempSync(path.join(tmpdir(), "balm-api-")); // no .env files here
     const run = (nodeEnv: string | undefined) =>
-      new Promise<{ status: number; cookies: string[] }>((resolve, reject) => {
+      new Promise<{ status: number; cookies: string[]; admin: string | number; adminCookies: string[] }>((resolve, reject) => {
         // VITEST keeps the process from listening; NODE_ENV is the variable under test.
         // The suite's server is standalone, which production accepts only when told.
-        const env: NodeJS.ProcessEnv = { ...process.env, VITEST: "1", MONGODB_URL: mongod.getUri(), MONGODB_ALLOW_STANDALONE: "true" };
+        // MFA_OPTIONAL_IN_DEVELOPMENT=true (from this suite) must change nothing in production.
+        const env: NodeJS.ProcessEnv = {
+          ...process.env,
+          VITEST: "1",
+          MONGODB_URL: mongod.getUri(),
+          MONGODB_ALLOW_STANDALONE: "true",
+          MFA_OPTIONAL_IN_DEVELOPMENT: "true",
+        };
         delete env.SEED_DEMO;
         if (nodeEnv) env.NODE_ENV = nodeEnv;
         else delete env.NODE_ENV;
@@ -645,10 +659,14 @@ describe("session cookies", () => {
         expect(r.status).toBe(200);
         expect(r.cookies.find((c) => c.startsWith("balm_session="))).toMatch(/;\s*Secure.*HttpOnly|HttpOnly.*;\s*Secure/i);
         expect(r.cookies.find((c) => c.startsWith("balm_csrf="))).toMatch(/;\s*Secure/i);
+        // The admin's password alone opens no session in production, whatever the flag says.
+        expect(r.admin).toBe("enrol");
+        expect(r.adminCookies).toEqual([]);
       }
       // Only an explicit NODE_ENV=development (plain http on a LAN) drops Secure.
       expect(development.status).toBe(200);
       expect(development.cookies.join("\n")).not.toMatch(/Secure/i);
+      expect(development.admin).toBe("session"); // the flag works only outside production
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
@@ -991,18 +1009,10 @@ describe("card payments", () => {
 
   it("record a real terminal result, cash and on-account", async () => {
     const t = await login(ADMIN, ADMIN_PW);
-    const card = await authed("POST", "/api/v1/payments", t, {
-      amount: 5,
-      method: "terminal",
-      reference: "TuSjNzT0MjI4hu+mWAvGXuoe/Bbz5lcT=",
-      provider: "elavon_terminal",
-      authCode: "A1B2C3",
-      cardBrand: "M/C",
-      last4: "4444",
-      entryMode: "CHIP",
-    });
+    const sale = await signedSale(t, 5);
+    const card = await authed("POST", "/api/v1/payments", t, sale.payload);
     expect(card.statusCode).toBe(201);
-    expect(card.json().data).toMatchObject({ provider: "elavon_terminal", status: "succeeded", last4: "4444" });
+    expect(card.json().data).toMatchObject({ provider: "elavon_terminal", status: "succeeded", last4: "4444", deviceId: sale.deviceId });
     expect((await authed("POST", "/api/v1/payments", t, { amount: 5, method: "cash" })).json().data.provider).toBe("cash");
     expect((await authed("POST", "/api/v1/payments", t, { amount: 5, method: "account" })).json().data.provider).toBe("account");
   });
@@ -1012,6 +1022,130 @@ describe("card payments", () => {
     expect((await authed("POST", "/api/v1/terminal/connection-token", t)).statusCode).toBe(503);
     expect((await authed("POST", "/api/v1/terminal/payment-intents", t, { amount: 5 })).statusCode).toBe(503);
     expect((await authed("POST", "/api/v1/terminal/payment-intents/pi_x/capture", t, { amount: 5 })).statusCode).toBe(503);
+  });
+});
+
+// A terminal result as the browser relays it: signed by the bridge code itself
+// (apps/bridge/signing.js) with a bridge paired through the API's own pairing.
+const bridgeSigning = createRequire(import.meta.url)("../../bridge/signing.js") as {
+  signSaleResult: (
+    cfg: { configured: true; deviceId: string; secret: string },
+    sale: { saleId: string; amount: number; currency?: string },
+    result: Record<string, unknown>,
+    now?: number,
+  ) => { deviceId: string; ts: number; sig: string; currency: string };
+};
+let pairedBridge: { deviceId: string; secret: string } | null = null;
+async function pairBridge() {
+  if (!pairedBridge) {
+    const { pairTerminalDevice } = await import("./lib/terminal-signature.js");
+    const { device, secret } = await pairTerminalDevice("Test counter");
+    pairedBridge = { deviceId: device.id, secret };
+  }
+  return pairedBridge;
+}
+const CARD = { reference: "TuSjNzT0MjI4hu+mWAvGXuoe/Bbz5lcT=", authCode: "A1B2C3", cardBrand: "M/C", last4: "4444", entryMode: "CHIP" };
+async function signedSale(t: string | null, total: number, opts: { at?: number; saleId?: string } = {}) {
+  const { deviceId, secret } = await pairBridge();
+  let saleId = opts.saleId;
+  if (!saleId) {
+    const products = (await authed("GET", "/api/v1/products", t)).json() as { data: { id: string }[] };
+    const order = await authed("POST", "/api/v1/orders", t, {
+      type: "quote",
+      lines: [{ productId: products.data[0]!.id, name: "x", unitLabel: "Each", qty: 1, unitPrice: total }],
+      paymentMethod: "card",
+      taxRate: 0,
+    });
+    saleId = (order.json() as { data: { id: string } }).data.id;
+  }
+  const result = { approved: true, ...CARD, reference: `${CARD.reference.slice(0, 20)}${saleId.slice(-8)}=` };
+  const signature = bridgeSigning.signSaleResult({ configured: true, deviceId, secret }, { saleId, amount: total }, result, opts.at);
+  return {
+    deviceId,
+    saleId,
+    payload: { amount: total, method: "terminal", saleId, provider: "elavon_terminal", status: "succeeded", ...CARD, reference: result.reference, signature },
+  };
+}
+
+describe("terminal results signed by the bridge", () => {
+  it("checks the same signature the bridge makes (shared test vector)", async () => {
+    const { signResult } = await import("./lib/terminal-signature.js");
+    const sig = signResult("0123456789abcdef".repeat(4), {
+      deviceId: "tdev_test0001",
+      saleId: "ord_ab12cd34",
+      amountCents: 10742,
+      currency: "USD",
+      reference: "RecNo-998877",
+      status: "succeeded",
+      authCode: "A1B2C3",
+      last4: "4444",
+      cardBrand: "M/C",
+      entryMode: "CHIP",
+      ts: 1760000000000,
+    });
+    expect(sig).toBe("39d77d13c3005f243cc920465b34dfdc6cefc9868d9697863aa5afeae6b03650"); // apps/bridge/signing.test.js
+  });
+
+  it("are refused unsigned, wrongly signed, for another sale or amount, stale, replayed or from a revoked bridge", async () => {
+    const t = await login(ADMIN, ADMIN_PW);
+    const pay = (body: unknown) => authed("POST", "/api/v1/payments", t, body);
+    const code = (res: { json: () => unknown }) => (res.json() as { error?: { code?: string } }).error?.code;
+
+    const good = await signedSale(t, 12);
+    const { signature: _s, ...unsigned } = good.payload;
+    expect(code(await pay(unsigned))).toBe("unsigned_terminal_result");
+    const tampered = { ...good.payload, signature: { ...good.payload.signature, sig: "0".repeat(64) } };
+    expect(code(await pay(tampered))).toBe("bad_terminal_signature");
+    // Signed for one sale, sent for another (with the right amount).
+    const other = await signedSale(t, 12);
+    expect(code(await pay({ ...good.payload, saleId: other.saleId }))).toBe("bad_terminal_signature");
+    // A different amount: refused by the order total, and by the signature (an order of that total).
+    expect(code(await pay({ ...good.payload, amount: 1 }))).toBe("amount_mismatch");
+    const cheaper = await signedSale(t, 1);
+    expect(code(await pay({ ...good.payload, saleId: cheaper.saleId, amount: 1 }))).toBe("bad_terminal_signature");
+    // A sale the store has no record of.
+    const loose = await signedSale(t, 12, { saleId: "ord_nosuchsale" });
+    expect(code(await pay(loose.payload))).toBe("unknown_sale");
+    expect(code(await pay({ ...good.payload, last4: "1111" }))).toBe("bad_terminal_signature");
+    expect(code(await pay({ ...good.payload, status: "failed" }))).toBe("bad_terminal_signature");
+    const unknown = { ...good.payload, signature: { ...good.payload.signature, deviceId: "tdev_unknown1" } };
+    expect(code(await pay(unknown))).toBe("unknown_terminal");
+    // Signed six minutes ago.
+    const stale = await signedSale(t, 12, { at: Date.now() - 6 * 60 * 1000 });
+    expect(code(await pay(stale.payload))).toBe("stale_terminal_result");
+
+    // Accepted once; the same signed result again is a replay.
+    expect((await pay(good.payload)).statusCode).toBe(201);
+    expect(code(await pay(good.payload))).toBe("replayed_terminal_result");
+
+    // A revoked bridge's results are refused.
+    const { revokeTerminalDevice, pairTerminalDevice } = await import("./lib/terminal-signature.js");
+    const fresh = await signedSale(t, 12);
+    await revokeTerminalDevice(fresh.deviceId);
+    try {
+      expect(code(await pay(fresh.payload))).toBe("unknown_terminal");
+    } finally {
+      const { device, secret } = await pairTerminalDevice("Test counter (re-paired)");
+      pairedBridge = { deviceId: device.id, secret };
+    }
+  });
+
+  it("pairs, lists and revokes bridges from the command line, printing the secret only when pairing", async () => {
+    const { terminalDevicesCommand } = await import("./scripts/terminal-devices.js");
+    const lines: string[] = [];
+    await terminalDevicesCommand(["pair", "Counter", "2"], (l) => lines.push(l));
+    const id = /TERMINAL_DEVICE_ID=(tdev_\w+)/.exec(lines.join("\n"))?.[1];
+    expect(id).toBeTruthy();
+    expect(lines.join("\n")).toMatch(/TERMINAL_SIGNING_SECRET=[0-9a-f]{64}/);
+    const { terminalDevices } = await import("./lib/terminal-signature.js");
+    expect((await terminalDevices.find(id!))?.secret).toMatch(/^enc:v1:/); // encrypted at rest
+    const listed: string[] = [];
+    await terminalDevicesCommand(["list"], (l) => listed.push(l));
+    expect(listed.join("\n")).toContain(id);
+    expect(listed.join("\n")).not.toMatch(/[0-9a-f]{64}/);
+    await terminalDevicesCommand(["revoke", id!], () => undefined);
+    expect((await terminalDevices.find(id!))?.active).toBe(false);
+    await expect(terminalDevicesCommand(["frobnicate"], () => undefined)).rejects.toThrow(/usage/);
   });
 });
 

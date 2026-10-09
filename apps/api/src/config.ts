@@ -129,6 +129,10 @@ export function startupProblems(
     problems.push("SEED_DEMO=true: demo logins and sample data are never seeded in production");
   if (env.ALLOW_PIN_LOGIN === "true" && onProductionHost)
     problems.push("ALLOW_PIN_LOGIN=true: PIN sign-in is for counter PCs, never for an internet-facing server");
+  // Ignored in production anyway (mfaOptional below); refused on a production
+  // host so nobody believes it did anything there.
+  if (env.MFA_OPTIONAL_IN_DEVELOPMENT === "true" && onProductionHost)
+    problems.push("MFA_OPTIONAL_IN_DEVELOPMENT=true: admins and managers always use two-step sign-in in production");
   // The webhook refuses unsigned calls outside development, so without the
   // token inbound texts, STOP replies included, would silently stop arriving.
   // Without the key, customer PII would be written in plaintext.
@@ -139,6 +143,18 @@ export function startupProblems(
   if (env.RC_WEBHOOK_URL && !env.RC_WEBHOOK_TOKEN && c.NODE_ENV !== "development")
     problems.push("RC_WEBHOOK_URL is set without RC_WEBHOOK_TOKEN: inbound SMS (and STOP opt-outs) would be refused");
   return problems;
+}
+
+/**
+ * Whether admins and managers may sign in without a second step. Never in
+ * production: only when NODE_ENV is development or test, on a machine that is
+ * not a production host, and MFA_OPTIONAL_IN_DEVELOPMENT=true. Read on every
+ * sign-in, so a test can switch it.
+ */
+export function mfaOptional(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (config.NODE_ENV === "production") return false;
+  if (productionHost && !env.VITEST) return false;
+  return env.MFA_OPTIONAL_IN_DEVELOPMENT === "true";
 }
 
 // Tests may run on any machine, so the host marker is ignored under Vitest.

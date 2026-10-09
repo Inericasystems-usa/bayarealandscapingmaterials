@@ -4,10 +4,15 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { api, setAuthToken, type AuthUser } from "@/lib/api-client";
 import { watchIdle } from "@/lib/idle";
 
+/** After the password: signed in, or a second step (code, or enrolment) to finish first. */
+export type SignInStep = { kind: "done" } | { kind: "verify" | "enrol"; challenge: string; expiresAt: string };
+
 interface AuthCtx {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<SignInStep>;
+  /** Start the POS with a session from the second step (LoginScreen). */
+  finishSignIn: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -56,13 +61,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { token, user: u } = await api.login(email, password);
+  const finishSignIn = useCallback((token: string, u: AuthUser) => {
     setAuthToken(token);
     setUser(u);
     // Work time is tracked from sign-in → sign-out: auto clock-in.
     api.clockIn(u.id).catch(() => {});
   }, []);
+
+  // Admins and managers get no session from the password alone: the API hands
+  // back a short-lived challenge for the code step (or authenticator enrolment).
+  const login = useCallback(
+    async (email: string, password: string): Promise<SignInStep> => {
+      const result = await api.login(email, password);
+      if (result.mfa) return { kind: result.mfa, challenge: result.challenge, expiresAt: result.expiresAt };
+      finishSignIn(result.token, result.user);
+      return { kind: "done" };
+    },
+    [finishSignIn],
+  );
 
   const logout = useCallback(async () => {
     // Clock out the active shift before signing off.
@@ -79,5 +95,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, [user]);
 
-  return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, login, finishSignIn, logout }}>{children}</Ctx.Provider>;
 }

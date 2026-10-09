@@ -4,6 +4,8 @@ import { Collection, newId, type Entity } from "../lib/store.js";
 import { requirePermission } from "../lib/auth.js";
 import { isDev } from "../config.js";
 import { containsPanAnywhere } from "../lib/pan-guard.js";
+import { acceptSignedResult } from "../lib/terminal-signature.js";
+import { orders } from "./orders.js";
 
 /**
  * Payments behind a provider-agnostic adapter. The MockProvider stands in for
@@ -12,7 +14,9 @@ import { containsPanAnywhere } from "../lib/pan-guard.js";
  * changes the provider implementation, not the route or the register.
  *
  * Outside development a card payment is only ever recorded from a real terminal
- * result: no mock approval, no simulated terminal or provider.
+ * result: no mock approval, no simulated terminal or provider, and only with
+ * the counter-PC bridge's signature over the sale, amount and result
+ * (lib/terminal-signature.ts), so the browser can't claim an approval itself.
  */
 export type PaymentStatus = "succeeded" | "failed";
 
@@ -29,6 +33,7 @@ export interface Payment extends Entity {
   cardBrand?: string;
   last4?: string;
   entryMode?: string; // CHIP | CONTACTLESS | SWIPE | KEYED
+  deviceId?: string; // the paired bridge that signed the terminal result
 }
 
 export const payments = new Collection<Payment>("payments");
@@ -71,7 +76,18 @@ const terminalFields = {
   cardBrand: z.string().regex(/^[A-Za-z0-9 /&.-]{1,24}$/).optional(),
   last4: z.string().regex(/^\d{4}$/).optional(),
   entryMode: z.string().regex(/^[A-Za-z_ -]{1,24}$/).optional(),
+  // The bridge's HMAC over the result (apps/bridge/signing.js), relayed as is.
+  signature: z
+    .object({
+      deviceId: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/),
+      ts: z.number().int().positive(),
+      sig: z.string().regex(/^[0-9a-f]{64}$/),
+      currency: z.string().regex(/^[a-z]{3}$/).default("usd"),
+    })
+    .optional(),
 };
+
+const CENT = 0.01;
 
 const router = Router();
 // Reading the payment ledger = reports; capturing a payment = register.
@@ -116,6 +132,39 @@ router.post("/", async (req, res) => {
       });
   }
 
+  // A terminal result is recorded only with the bridge's signature over this
+  // sale, amount and outcome, once, within five minutes. Development accepts
+  // an unsigned one from an unpaired bridge; a signature sent is always checked.
+  if (d.method === "terminal" && d.reference && (d.signature || !isDev)) {
+    if (!d.signature)
+      return res.status(409).json({
+        error: { code: "unsigned_terminal_result", message: "This card result isn't signed by a paired terminal bridge. Pair the bridge (apps/bridge/README.md)." },
+      });
+    if (!d.saleId || !d.status)
+      return res.status(400).json({ error: { code: "invalid", message: "A terminal result needs its saleId and status." } });
+    const order = await orders.find(d.saleId);
+    if (!order) return res.status(409).json({ error: { code: "unknown_sale", message: "This card result is for a sale the store has no record of." } });
+    if (Math.abs(order.total - d.amount) > CENT)
+      return res.status(400).json({ error: { code: "amount_mismatch", message: "Amount does not match the order total." } });
+    const accepted = await acceptSignedResult(
+      {
+        deviceId: d.signature.deviceId,
+        saleId: d.saleId,
+        amountCents: Math.round(d.amount * 100),
+        currency: d.signature.currency,
+        reference: d.reference,
+        status: d.status,
+        authCode: d.authCode,
+        last4: d.last4,
+        cardBrand: d.cardBrand,
+        entryMode: d.entryMode,
+        ts: d.signature.ts,
+      },
+      d.signature.sig,
+    );
+    if ("refused" in accepted) return res.status(409).json({ error: accepted.refused });
+  }
+
   // External terminal result vs mock provider.
   const result: ProviderResult = d.reference
     ? { status: d.status ?? "succeeded", reference: d.reference, provider: d.provider ?? "elavon_terminal" }
@@ -133,6 +182,7 @@ router.post("/", async (req, res) => {
     ...(d.cardBrand ? { cardBrand: d.cardBrand } : {}),
     ...(d.last4 ? { last4: d.last4 } : {}),
     ...(d.entryMode ? { entryMode: d.entryMode } : {}),
+    ...(d.signature ? { deviceId: d.signature.deviceId } : {}),
   });
   if (result.status === "failed")
     return res.status(402).json({ error: { code: "payment_failed", message: "Card declined." }, data: payment });

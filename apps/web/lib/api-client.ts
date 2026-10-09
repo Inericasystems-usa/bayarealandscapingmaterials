@@ -307,6 +307,15 @@ export interface TerminalPaymentDetails {
   cardBrand?: string;
   last4?: string;
   entryMode?: string;
+  // The bridge's signature over the result (apps/bridge/signing.js), relayed unchanged.
+  signature?: TerminalSignature;
+}
+
+export interface TerminalSignature {
+  deviceId: string;
+  ts: number;
+  sig: string;
+  currency: string;
 }
 
 export type DeliveryStatus = "scheduled" | "loading" | "enroute" | "delivered" | "cancelled";
@@ -466,6 +475,21 @@ export interface AuthUser {
   phone: string;
   active: boolean;
   permissions: string[] | null;
+  /** Two-step sign-in (authenticator app) is set up for this account. */
+  mfaEnabled?: boolean;
+}
+
+/** What a correct password gets: a session, or (admins, managers) a second step first. */
+export type LoginResult =
+  | { token: string; user: AuthUser; mfa?: undefined }
+  | { mfa: "verify" | "enrol"; challenge: string; expiresAt: string };
+
+export interface MfaEnrolment {
+  otpauthUri: string;
+  /** The same secret as the QR code, for typing into the app by hand. */
+  secret: string;
+  issuer: string;
+  account: string;
 }
 
 export interface BreakEntry {
@@ -865,10 +889,28 @@ export const api = {
 
   // Auth + users (SaaS multi-employee)
   login: (email: string, password: string) =>
-    req<{ data: { token: string; user: AuthUser } }>("/auth/login", {
+    req<{ data: LoginResult }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }).then((r) => r.data),
+  // Second step: the challenge from login() is good only for these, for five minutes.
+  mfaEnrol: (challenge: string) =>
+    req<{ data: MfaEnrolment }>("/auth/mfa/enrol", { method: "POST", body: JSON.stringify({ challenge }) }).then((r) => r.data),
+  mfaConfirmEnrolment: (challenge: string, code: string) =>
+    req<{ data: { token: string; user: AuthUser; recoveryCodes: string[] } }>("/auth/mfa/enrol/confirm", {
+      method: "POST",
+      body: JSON.stringify({ challenge, code }),
+    }).then((r) => r.data),
+  mfaVerify: (challenge: string, code: string) =>
+    req<{ data: { token: string; user: AuthUser; recoveryCodesLeft: number } }>("/auth/mfa/verify", {
+      method: "POST",
+      body: JSON.stringify({ challenge, code }),
+    }).then((r) => r.data),
+  /** Admins: clear another account's authenticator (lost phone); they enrol again at next sign-in. */
+  resetUserMfa: (id: string) => req<{ data: AuthUser }>(`/users/${id}/mfa/reset`, { method: "POST" }).then((r) => r.data),
+  /** Turn off your own two-step sign-in; needs a current code from the authenticator. */
+  removeMyMfa: (code: string) =>
+    req<{ data: AuthUser }>("/users/me/mfa/remove", { method: "POST", body: JSON.stringify({ code }) }).then((r) => r.data),
   me: () => req<{ data: AuthUser }>("/auth/me").then((r) => r.data),
   logout: () => req("/auth/logout", { method: "POST" }),
   listUsers: () => req<{ data: AuthUser[] }>("/users").then((r) => r.data),

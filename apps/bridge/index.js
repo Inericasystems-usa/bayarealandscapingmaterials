@@ -15,6 +15,11 @@
 // answers only the POS origin(s) in BRIDGE_ALLOWED_ORIGINS, and every call
 // except /health must carry this PC's BRIDGE_TOKEN (PCI DSS 6.2.4, CSRF).
 // `pnpm run pair` creates the token and prints the one-time pairing link.
+//
+// Card results are signed for the API (signing.js) with this PC's
+// TERMINAL_SIGNING_SECRET, which never leaves this PC: the browser relays a
+// result but can't make one up. A live terminal won't take a card until the
+// bridge is paired with the store's API (README, Terminal results).
 
 const http = require("node:http");
 const crypto = require("node:crypto");
@@ -30,6 +35,7 @@ if (fs.existsSync(ENV_FILE)) {
 }
 
 const terminal = require("./terminal");
+const signing = require("./signing");
 
 let ThermalPrinter, PrinterTypes;
 try {
@@ -43,6 +49,9 @@ const HOST = process.env.BRIDGE_HOST || "127.0.0.1"; // loopback only, enforced 
 const IFACE = process.env.PRINTER_INTERFACE || "tcp://192.168.1.50";
 const TOKEN = process.env.BRIDGE_TOKEN || ""; // required, no default
 const ORIGINS = parseOrigins(process.env.BRIDGE_ALLOWED_ORIGINS || "https://bayarealandscapingmaterials.com");
+
+const SIGNING = signing.signingConfig();
+const SALE_ID_FORMAT = /^[A-Za-z0-9_-]{1,64}$/;
 
 const BIND_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const LOOPBACK_NAMES = new Set(["localhost", "127.0.0.1", "[::1]"]); // as URL hostnames
@@ -185,17 +194,30 @@ const server = http.createServer(async (req, res) => {
 
   // ── Payment terminal (Ingenico Axium DX8000 via Elavon) ──────────────
   if (req.url === "/pay/status" && req.method === "GET") {
-    return send(res, 200, { ok: true, terminal: terminal.info() });
+    return send(res, 200, { ok: true, terminal: { ...terminal.info(), signing: SIGNING.configured } });
   }
 
   if (req.url === "/pay/sale" && req.method === "POST") {
     const body = await readJson(req);
     const amount = Number(body.amount);
     if (!(amount > 0)) return send(res, 400, { ok: false, error: "amount must be positive" });
+    // The signature binds the result to the sale it pays for.
+    if (typeof body.saleId !== "string" || !SALE_ID_FORMAT.test(body.saleId)) {
+      return send(res, 400, { ok: false, error: "saleId required" });
+    }
+    const currency = typeof body.currency === "string" && /^[a-z]{3}$/i.test(body.currency) ? body.currency.toLowerCase() : "usd";
+    // The API refuses unsigned results, so an unpaired bridge mustn't charge a
+    // card it can't get recorded.
+    if (terminal.info().mode === "live" && !SIGNING.configured) {
+      return send(res, 409, { ok: false, error: `this bridge isn't paired with the store yet (${SIGNING.problem}); see apps/bridge/README.md` });
+    }
     try {
       const result = await terminal.sale({ amount, reference: body.reference });
+      const signature = SIGNING.configured
+        ? signing.signSaleResult(SIGNING, { saleId: body.saleId, amount, currency }, result)
+        : undefined;
       // Decline is a normal business outcome — 200 with approved:false.
-      return send(res, 200, { ok: true, result });
+      return send(res, 200, { ok: true, result: { ...result, saleId: body.saleId, currency, ...(signature ? { signature } : {}) } });
     } catch (e) {
       return send(res, 502, { ok: false, error: String(e && e.message ? e.message : e) });
     }
@@ -261,4 +283,6 @@ server.listen(PORT, HOST, () => {
   console.log(`  callers: ${[...ORIGINS].join(", ")} with this PC's bridge token`);
   if (t.provider === "sim") console.warn("  SIMULATED terminal: every sale is approved and no card is charged. Demos only.");
   if (t.mode === "off") console.warn("  No TERMINAL_PROVIDER set: the Terminal tender is declined until one is configured.");
+  if (SIGNING.configured) console.log(`  terminal results signed as ${SIGNING.deviceId}`);
+  else console.warn(`  Terminal results are not signed (${SIGNING.problem}): a live terminal refuses sales until paired (README).`);
 });

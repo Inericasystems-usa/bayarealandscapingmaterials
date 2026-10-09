@@ -24,7 +24,7 @@ import { api, type ApiProduct, type InventoryRow, type Customer, type RegisterSe
 import { uomOptions, customOption, isBulkUnit, priceNumber, type UomOption } from "@/lib/uom";
 import { useCustomerDisplay } from "@/lib/useCustomerDisplay";
 import { printReceipt } from "@/lib/receipt";
-import { kickDrawer, terminalInfo, terminalSale, type TerminalInfo } from "@/lib/hardware";
+import { kickDrawer, terminalInfo, terminalSale, terminalVoid, type TerminalInfo } from "@/lib/hardware";
 import { COMPANY } from "@/lib/company";
 import { useScanner } from "@/lib/useScanner";
 import { useModalDismiss } from "@/lib/useModalDismiss";
@@ -521,7 +521,7 @@ export default function PosRegisterPage() {
         // Physical terminal (Ingenico DX8000) via the hardware bridge.
         let result;
         try {
-          result = await terminalSale(amt);
+          result = await terminalSale(amt, order.id);
         } catch (e) {
           setError(
             `Terminal unreachable: ${e instanceof Error ? e.message : "bridge offline"}. Start the bridge or use another method.`,
@@ -538,16 +538,30 @@ export default function PosRegisterPage() {
           setError(SIMULATED_TERMINAL);
           return;
         }
-        // Record the already-authorized terminal payment with its auth details.
-        await api.capturePayment(amt, "terminal", order.id, {
-          reference: result.reference,
-          provider: result.provider === "sim" ? "elavon_sim" : "elavon_terminal",
-          status: "succeeded",
-          authCode: result.authCode,
-          cardBrand: result.cardBrand,
-          last4: result.last4,
-          entryMode: result.entryMode,
-        });
+        // Record the already-authorized terminal payment with its auth details
+        // and the bridge's signature over them (the API checks it).
+        try {
+          await api.capturePayment(amt, "terminal", order.id, {
+            reference: result.reference,
+            provider: result.provider === "sim" ? "elavon_sim" : "elavon_terminal",
+            status: "succeeded",
+            authCode: result.authCode,
+            cardBrand: result.cardBrand,
+            last4: result.last4,
+            entryMode: result.entryMode,
+            signature: result.signature,
+          });
+        } catch (e) {
+          // The card was charged but the store couldn't record it: void it on
+          // the terminal so the customer isn't charged for an unrecorded sale.
+          if (isNetworkError(e)) throw e;
+          const voided = await terminalVoid(result.reference);
+          setError(
+            `${e instanceof Error ? e.message : "The payment couldn't be recorded."} ` +
+              (voided ? "The card charge was voided on the terminal." : "Void the charge on the terminal before trying again."),
+          );
+          return;
+        }
       } else if (payMethod === "card") {
         // Stripe Terminal flow (simulated until a key + reader are set).
         const pi = await api.createPaymentIntent(amt, order.id);

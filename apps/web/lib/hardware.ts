@@ -9,7 +9,12 @@
  * the browser the register runs in (`pnpm run pair` in apps/bridge prints the
  * link). The token is checked against the bridge, kept in that browser's
  * localStorage only, and the page reloads without it in the address bar.
+ *
+ * Card results come back signed by the bridge (apps/bridge/signing.js) with a
+ * secret only the bridge and the API hold; the POS relays the signature to the
+ * API unchanged and can't make one itself.
  */
+import type { TerminalSignature } from "./api-client";
 const BRIDGE = process.env.NEXT_PUBLIC_BRIDGE_URL ?? "http://localhost:9110";
 const TOKEN_KEY = "balm_bridge_token";
 const PAIR_PREFIX = "#bridge-token=";
@@ -106,6 +111,8 @@ export interface TerminalInfo {
   configured: boolean;
   host: string | null;
   terminalId: string | null;
+  /** The bridge is paired with the API and signs its results (a live terminal needs this). */
+  signing?: boolean;
 }
 
 export interface TerminalSaleResult {
@@ -118,6 +125,10 @@ export interface TerminalSaleResult {
   last4?: string;
   entryMode?: string;
   provider: string;
+  saleId?: string;
+  currency?: string;
+  /** Present when the bridge is paired; the API refuses card results without it outside development. */
+  signature?: TerminalSignature;
 }
 
 /** Is the bridge reachable and what terminal is configured? null if offline. */
@@ -137,11 +148,12 @@ export async function terminalInfo(): Promise<TerminalInfo | null> {
  * the DX8000; this resolves with the approval (or decline). Throws if the bridge
  * is unreachable so the caller can fall back or surface the error.
  */
-export async function terminalSale(amount: number, reference?: string): Promise<TerminalSaleResult> {
+export async function terminalSale(amount: number, saleId: string, reference?: string): Promise<TerminalSaleResult> {
   const res = await fetch(`${BRIDGE}/pay/sale`, {
     method: "POST",
     headers: await bridgeHeaders({ "content-type": "application/json" }),
-    body: JSON.stringify({ amount, reference }),
+    // The bridge signs the result for this sale and amount.
+    body: JSON.stringify({ amount, saleId, currency: "usd", reference }),
     // EMV card-present can take a while (PIN, app selection) — generous timeout.
     signal: AbortSignal.timeout(120000),
   });

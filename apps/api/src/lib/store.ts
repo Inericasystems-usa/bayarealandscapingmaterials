@@ -247,6 +247,27 @@ export class Collection<T extends Entity> {
   }
 
   /**
+   * Update row `id` only while it still matches `where`, in one database
+   * operation: `set` replaces fields and `pull` removes a value from an array
+   * field. Returns the updated row, or null when the row no longer matched (so
+   * of two parallel calls claiming the same thing, only one gets a row back).
+   */
+  async updateIf(id: string, where: Where, change: { set?: Partial<T>; pull?: { [K in keyof T]?: unknown } }): Promise<T | null> {
+    const doc = await this.model
+      .findOneAndUpdate(
+        { ...where, id },
+        {
+          $set: { ...(change.set ?? {}), id, updatedAt: new Date().toISOString() },
+          ...(change.pull && { $pull: change.pull }),
+        },
+        { new: true },
+      )
+      .session(sess())
+      .lean();
+    return doc ? toEntity<T>(doc) : null;
+  }
+
+  /**
    * Atomic update of row `id`, created if missing: `inc` adds to numeric fields
    * and `max` raises fields to at least the given values (ISO dates compare
    * correctly as strings). Returns the updated row. Unlike find-then-update,

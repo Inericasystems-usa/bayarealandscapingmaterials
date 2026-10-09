@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "pair": "node index.js --pair"
+    "pair": "node index.js --pair",
+    "test": "node --test"
   },
   "dependencies": {
     "node-thermal-printer": "^4.4.4"
