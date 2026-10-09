@@ -216,6 +216,34 @@ describe("encryption at rest", () => {
     expect(rawc?.email.startsWith("enc:v1:")).toBe(true);
     expect(rawc?.name).toBe("Enc Test");
   });
+
+  it("never returns ciphertext from any route that writes a customer", async () => {
+    const t = await login("manager@balm.local", DEMO_PW);
+    const create = await authed("POST", "/api/v1/customers", t, {
+      name: "Cipher Leak Test",
+      phone: "555-111-2222",
+      email: "leak.test@example.com",
+      billingAddress: "2 Quiet Ln",
+      deliveryAddress: "3 Yard Rd",
+      account: { loyaltyPoints: 500 },
+    });
+    const id = (create.json().data as { id: string }).id;
+    const responses = [
+      create,
+      await authed("PATCH", `/api/v1/customers/${id}`, t, { notes: "updated" }),
+      await authed("POST", `/api/v1/customers/${id}/payment`, t, { amount: 10 }),
+      await authed("POST", `/api/v1/customers/${id}/redeem-points`, t, { points: 100 }),
+    ];
+    for (const r of responses) {
+      expect(r.statusCode).toBeLessThan(300);
+      expect(r.body).not.toContain("enc:v1:");
+      const c = r.json().data as { phone: string; email: string; billingAddress: string; deliveryAddress: string };
+      expect(c.phone).toBe("555-111-2222");
+      expect(c.email).toBe("leak.test@example.com");
+      expect(c.billingAddress).toBe("2 Quiet Ln");
+      expect(c.deliveryAddress).toBe("3 Yard Rd");
+    }
+  });
 });
 
 describe("order idempotency (offline replay)", () => {

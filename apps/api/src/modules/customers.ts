@@ -185,7 +185,8 @@ router.post("/:id/payment", async (req, res) => {
     return { customer, payment };
   });
   await recordAudit(req.authUser, "ar.payment", `AR payment $${parsed.data.amount.toFixed(2)} · ${c.name}`, { customerId: id, amount: parsed.data.amount });
-  return res.json({ data: result.customer, payment: result.payment });
+  // Stored rows hold PII as ciphertext; every response decrypts, like GET /:id.
+  return res.json({ data: decryptCustomer(result.customer), payment: result.payment });
 });
 
 // Redeem loyalty points → store credit (at the configured redemption rate).
@@ -207,7 +208,7 @@ router.post("/:id/redeem-points", async (req, res) => {
   };
   const updated = await customers.update(id, { account });
   await recordAudit(req.authUser, "loyalty.redeem", `Redeemed ${points} pts → $${credit.toFixed(2)} · ${c.name}`, { customerId: id, points, credit });
-  return res.json({ data: updated, redeemed: { points, credit } });
+  return res.json({ data: decryptCustomer(updated), redeemed: { points, credit } });
 });
 
 // Customer statement: open + settled invoices and the payment history.
