@@ -23,10 +23,11 @@ type Status = "idle" | "submitting" | "ok" | "error";
 
 interface QuoteFormProps {
   defaultMaterial?: string;
-  defaultYards?: string;
+  /** Ready to show, with its unit ("4 cubic yards", "2 half cubic yards"). */
+  defaultQuantity?: string;
 }
 
-export function QuoteForm({ defaultMaterial = "", defaultYards = "" }: QuoteFormProps) {
+export function QuoteForm({ defaultMaterial = "", defaultQuantity = "" }: QuoteFormProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [address, setAddress] = useState<StructuredAddress>(EMPTY_ADDRESS);
@@ -184,7 +185,7 @@ export function QuoteForm({ defaultMaterial = "", defaultYards = "" }: QuoteForm
           name="quantity"
           label="Approx. quantity"
           placeholder="e.g. 4 cubic yards"
-          defaultValue={defaultYards ? `${defaultYards} cubic yards` : ""}
+          defaultValue={defaultQuantity}
         />
       </div>
       <TextAreaField

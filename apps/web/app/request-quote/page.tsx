@@ -7,8 +7,7 @@ import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { FadeIn, SlideIn } from "@/components/AnimatedSection";
 import { COMPANY } from "@/lib/company";
-import { SAMPLE_PRODUCTS } from "@/lib/sample-products";
-import { findBulkMaterial } from "@/lib/bulk-materials";
+import { resolveQuotePrefill } from "@/lib/catalog/quote";
 import { QuoteForm } from "./QuoteForm";
 
 export const metadata: Metadata = {
@@ -26,10 +25,12 @@ const EXPECTATIONS = [
 ] as const;
 
 interface PageProps {
-  // `material` + `quantity` come from the calculator's "Get this quoted" CTA.
-  // `sku` + `yards` are the older product-page links — both still honoured so
-  // no existing inbound link breaks.
+  // `product` + `unit` + `quantity` come from a product page, `material` +
+  // `quantity` from the calculator, `sku` + `yards` from older links; all are
+  // resolved against the catalog in lib/catalog/quote.ts.
   searchParams: Promise<{
+    product?: string;
+    unit?: string;
     material?: string;
     quantity?: string;
     sku?: string;
@@ -38,16 +39,7 @@ interface PageProps {
 }
 
 export default async function RequestQuotePage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const product = params.sku
-    ? SAMPLE_PRODUCTS.find((p) => p.sku === params.sku)
-    : undefined;
-  // A calculator link carries the catalog product id; resolve it to the name the
-  // material field expects. Unknown ids fall through to an empty prefill rather
-  // than echoing a raw slug into the form.
-  const calculatorMaterial = findBulkMaterial(params.material);
-  const prefillMaterial = calculatorMaterial?.name ?? product?.name ?? "";
-  const prefillYards = params.quantity ?? params.yards ?? "";
+  const prefill = resolveQuotePrefill(await searchParams);
 
   const addr = COMPANY.address;
   const addressLine = `${addr.street}, ${addr.city}, ${addr.state} ${addr.postalCode}`;
@@ -69,16 +61,10 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
                   Project Details
                 </CardTitle>
                 <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                  {calculatorMaterial ? (
+                  {prefill ? (
                     <>
-                      Quoting <strong>{calculatorMaterial.name}</strong>
-                      {prefillYards ? <> · {prefillYards} cubic yards</> : null}. Edit any
-                      field below.
-                    </>
-                  ) : product ? (
-                    <>
-                      Quoting <strong>{product.name}</strong> ({product.sku}). Edit any
-                      field below.
+                      Quoting <strong>{prefill.label}</strong>
+                      {prefill.quantity ? <> · {prefill.quantity}</> : null}. Edit any field below.
                     </>
                   ) : (
                     "Or call the yard — sometimes faster."
@@ -86,8 +72,8 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
                 </p>
                 <div className="mt-6">
                   <QuoteForm
-                    defaultMaterial={prefillMaterial}
-                    defaultYards={prefillYards}
+                    defaultMaterial={prefill?.material ?? ""}
+                    defaultQuantity={prefill?.quantity ?? ""}
                   />
                 </div>
               </CardContent>

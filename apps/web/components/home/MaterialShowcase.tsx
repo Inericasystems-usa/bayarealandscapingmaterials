@@ -1,37 +1,37 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Search } from "lucide-react";
-import { products } from "@/lib/products";
+import { categoryPath, productsIn } from "@/lib/catalog";
 
 /**
  * "Shop by material" — a calm, responsive category grid.
  *
  * Static server component. The only motion is hover feedback (image zoom +
- * arrow), which is a UX affordance, not decoration. Each tile links into the
- * live /products catalog. Images are pulled from real catalog items.
+ * arrow), which is a UX affordance, not decoration. Each tile links to its
+ * catalog category page, and its image is a real product photo from that
+ * category (the largest one we hold).
  */
 
-// Curated storefront categories → the catalog category names they map to.
-const GROUPS: { label: string; blurb: string; match: string[] }[] = [
-  { label: "Soil & Compost", blurb: "Custom blends & amendments", match: ["Soil Mix", "Compost, Soil & Amendments", "Compost"] },
-  { label: "Mulch & Bark", blurb: "Ground cover that lasts", match: ["Bark and Mulches", "Mulch", "Bark"] },
-  { label: "Gravel & Aggregates", blurb: "Drainage, paths & base", match: ["Sand, Gravel & Decorative Aggregates", "Gravel"] },
-  { label: "Decorative Pebbles", blurb: "Finish with character", match: ["Decorative Pebbles", "Pebbles", "Decorative Aggregates"] },
-  { label: "Sand", blurb: "Play, mason & polymeric", match: ["Sand", "Polymeric Sands"] },
-  { label: "Flagstone & Pavers", blurb: "Patios & walkways", match: ["Flagstone", "Flagstones", "Pavers", "Pavers & Stepping Stones"] },
-  { label: "Base & Drain Rock", blurb: "The foundation layer", match: ["Base Rock", "Drain Rock"] },
-  { label: "Tools & Accessories", blurb: "Everything to finish the job", match: ["Tools & Accessories", "Gardening Tools"] },
+const GROUPS: { slug: string; label: string; blurb: string }[] = [
+  { slug: "bark-mulch", label: "Bark & Mulch", blurb: "Ground cover that lasts" },
+  { slug: "decorative-rock", label: "Decorative Rock", blurb: "Beds, borders & DG paths" },
+  { slug: "premium-decorative-rock", label: "Beach Pebbles", blurb: "Accent stone by the pound" },
+  { slug: "construction-aggregates", label: "Base & Drain Rock", blurb: "The foundation layer" },
+  { slug: "flagstone-slate", label: "Flagstone & Slate", blurb: "Patios & walkways" },
+  { slug: "boulders", label: "Boulders & Moss Rock", blurb: "Natural accents" },
+  { slug: "sealers", label: "Sealers & Binders", blurb: "Protect & finish" },
+  { slug: "tools-accessories", label: "Tools & Accessories", blurb: "Everything to finish the job" },
 ];
 
-function imageFor(match: string[]): string | null {
-  for (const cat of match) {
-    const p = products.find((x) => x.category === cat || x.subcategory === cat);
-    if (p) return p.image;
-  }
-  return null;
+function imageFor(slug: string): string | null {
+  const photos = productsIn(slug)
+    .map((p) => p.images[0])
+    .filter((i): i is NonNullable<typeof i> => Boolean(i))
+    .sort((a, b) => b.width * b.height - a.width * a.height);
+  return photos[0]?.src ?? null;
 }
 
-const TILES = GROUPS.map((g) => ({ ...g, image: imageFor(g.match) })).filter(
+const TILES = GROUPS.map((g) => ({ ...g, image: imageFor(g.slug) })).filter(
   (g): g is (typeof GROUPS)[number] & { image: string } => Boolean(g.image),
 );
 
@@ -84,7 +84,7 @@ export function MaterialShowcase() {
           {TILES.map((tile) => (
             <Link
               key={tile.label}
-              href="/products"
+              href={categoryPath(tile.slug)}
               className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] transition-shadow duration-300 hover:shadow-[var(--shadow-lg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]"
             >
               <Image

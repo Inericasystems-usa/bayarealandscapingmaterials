@@ -4,6 +4,7 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { COMPANY } from "@/lib/company";
 import { CONSENT_BOOT_SCRIPT } from "@/lib/consent";
 import { openingHoursSpecification } from "@/lib/hours";
+import { CATEGORIES, categoryPath } from "@/lib/catalog";
 // Next.js processes this global stylesheet at build time.
 import "./globals.css";
 import React from "react";
@@ -97,6 +98,18 @@ const localBusinessJsonLd = {
   // Generated from COMPANY.hoursSpec — the same source the sticky call bar's
   // "Open until 5:00 PM" indicator reads, so schema and UI cannot drift.
   openingHoursSpecification: openingHoursSpecification(),
+  // What the yard sells, by catalog category (lib/catalog). Categories only, no
+  // offers or prices: the site quotes prices on request.
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "Landscape materials and supplies",
+    url: `https://${COMPANY.domain}/products`,
+    itemListElement: CATEGORIES.map((c) => ({
+      "@type": "OfferCatalog",
+      name: c.name,
+      url: `https://${COMPANY.domain}${categoryPath(c.slug)}`,
+    })),
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

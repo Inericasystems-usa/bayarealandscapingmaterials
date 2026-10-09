@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, Phone, X } from "lucide-react";
-import { Button, cn, Container } from "@balm/ui";
+import { Button, buttonVariants, cn, Container } from "@balm/ui";
 import { Logo } from "@/components/Logo";
 import { COMPANY } from "@/lib/company";
 
@@ -70,10 +70,10 @@ export function SiteHeader() {
             <span>{COMPANY.phone}</span>
           </a>
 
-          <Link href="/request-quote">
-            <Button size="md" className="hidden sm:inline-flex">
-              Request Quote
-            </Button>
+          {/* The link itself is the button (a <button> inside <a> is invalid, and
+              hiding only the inner button left an empty link on phones). */}
+          <Link href="/request-quote" className={buttonVariants({ size: "md", className: "hidden sm:inline-flex" })}>
+            Request Quote
           </Link>
 
           <Button
@@ -117,10 +117,12 @@ export function SiteHeader() {
                 <Phone className="h-4 w-4" strokeWidth={1.5} aria-hidden />
                 {COMPANY.phone}
               </a>
-              <Link href="/request-quote" onClick={() => setOpen(false)} className="mt-3">
-                <Button size="lg" className="w-full">
-                  Request Quote
-                </Button>
+              <Link
+                href="/request-quote"
+                onClick={() => setOpen(false)}
+                className={buttonVariants({ size: "lg", className: "mt-3 w-full" })}
+              >
+                Request Quote
               </Link>
             </nav>
           </Container>

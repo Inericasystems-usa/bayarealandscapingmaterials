@@ -1,30 +1,24 @@
-import { products } from "@/lib/products";
+import { BULK_MATERIAL_LIST } from "@/lib/catalog/bulk.generated";
 
 /**
- * Materials sold loose by the cubic yard — what the coverage calculator can
+ * Materials sold loose by the cubic yard: what the coverage calculator can
  * estimate yardage for, and what a /request-quote deep link can pre-select.
  *
- * Derived from the catalog (lib/products.ts) rather than duplicated, so the
- * calculator always offers exactly what the yard sells. The catalog is the
- * source of truth and this is a read of it, never a second copy.
+ * Generated from the catalog by scripts/build-catalog.mjs (a test checks it
+ * matches), and kept separate from the full catalog so the calculator, a
+ * client page, does not ship every product to the browser.
  *
- * These carry NO price. Pricing is not published anywhere on the site — every
- * product reads "Contact for pricing" — so the calculator reports yardage only
- * and a real figure comes from the yard on a quote. Nothing here may grow a
- * dollar field again without the catalog publishing one first: an invented
- * number would land in front of a customer AND in what we report to Google.
+ * These carry NO price. The calculator reports yardage only and a real figure
+ * comes from the yard on a quote.
  */
 export interface BulkMaterial {
-  /** Catalog product id — also the `material` slug in /request-quote links. */
+  /** Catalog product slug, also the `material` value in /request-quote links. */
   id: string;
   name: string;
   category: string;
 }
 
-export const BULK_MATERIALS: readonly BulkMaterial[] = products
-  .filter((p) => p.soldByCubicYard === true)
-  .map((p) => ({ id: p.id, name: p.name, category: p.category }))
-  .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+export const BULK_MATERIALS: readonly BulkMaterial[] = BULK_MATERIAL_LIST;
 
 export function findBulkMaterial(id: string | undefined | null): BulkMaterial | undefined {
   if (!id) return undefined;

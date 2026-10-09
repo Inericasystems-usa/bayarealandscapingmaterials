@@ -10,9 +10,9 @@ const COLUMNS = [
     title: "Products",
     links: [
       { href: "/products", label: "All Products" },
-      { href: "/products?category=aggregate", label: "Sand & Gravel" },
-      { href: "/products?category=bark", label: "Mulch & Bark" },
-      { href: "/products?category=sand", label: "Soil & Amendments" },
+      { href: "/products/category/decorative-rock", label: "Decorative Rock" },
+      { href: "/products/category/bark-mulch", label: "Bark & Mulch" },
+      { href: "/products/category/flagstone-slate", label: "Flagstone & Slate" },
       { href: "/tools", label: "Tools & Accessories" },
     ],
   },

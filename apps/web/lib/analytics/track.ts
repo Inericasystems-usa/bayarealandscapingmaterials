@@ -133,10 +133,9 @@ export function trackPriceListView(itemCount: number): void {
 }
 
 /**
- * A single material's page was viewed.
- *
- * Currently UNUSED: the site has no per-material route (`/materials/[slug]`) —
- * /products is one combined catalog page, reported as `price_list_view`.
+ * A single product's page (/products/<slug>) was viewed. Fired once per page
+ * view by components/catalog/ProductViewTracker. The combined catalog at
+ * /products is reported as `price_list_view`.
  */
 export function trackMaterialPageView(p: { material: string; slug: string }): void {
   track({

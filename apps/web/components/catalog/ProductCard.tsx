@@ -1,0 +1,74 @@
+import Image from "next/image";
+import Link from "next/link";
+import { CONTACT_FOR_PRICING } from "@/lib/storefront";
+import { productPath, stockLabel, type CatalogCard } from "@/lib/catalog/shared";
+import type { StockStatus } from "@/lib/catalog/types";
+
+/**
+ * One product in a catalog grid. Presentational only (no hooks), so both the
+ * server-rendered pages and the client-side filters can use it.
+ */
+
+export function StockBadge({ status, className = "" }: { status: StockStatus; className?: string }) {
+  const inStock = status === "instock";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        inStock
+          ? "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]"
+          : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)]"
+      } ${className}`}
+    >
+      <span
+        aria-hidden
+        className={`h-1.5 w-1.5 rounded-full ${inStock ? "bg-[var(--color-moss-500)]" : "bg-[var(--color-text-muted)]"}`}
+      />
+      {stockLabel(status)}
+    </span>
+  );
+}
+
+export function ProductCard({ card, headingLevel = 3 }: { card: CatalogCard; headingLevel?: 2 | 3 }) {
+  const Heading = headingLevel === 2 ? "h2" : "h3";
+  return (
+    <Link
+      href={productPath(card.slug)}
+      className="group flex h-full flex-col rounded-[var(--radius-xl)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-border-focus)]"
+    >
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-white">
+        <Image
+          src={card.image.src}
+          alt={card.image.isPlaceholder ? "" : card.image.alt}
+          fill
+          unoptimized={card.image.isPlaceholder}
+          sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
+          // Whole product in frame: tool photos are shot on white and would be
+          // cropped by a cover fit. The generic placeholder fills its tile.
+          className={`${card.image.isPlaceholder ? "object-cover" : "object-contain"} transition-transform duration-[900ms] ease-out group-hover:scale-105`}
+        />
+        {card.image.isPlaceholder ? (
+          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[0.68rem] font-semibold text-[var(--color-moss-900)]">
+            Photo coming soon
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-1 flex-col pt-4">
+        <p className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-[var(--color-text-brand)]">
+          {card.categoryName}
+        </p>
+        <Heading className="mt-1.5 font-display text-lg font-medium leading-snug text-[var(--color-text-primary)] group-hover:text-[var(--color-text-brand)]">
+          {card.name}
+        </Heading>
+        <p className="mb-4 mt-1 text-sm text-[var(--color-text-secondary)]">
+          {card.soldBy.charAt(0).toUpperCase() + card.soldBy.slice(1)}
+        </p>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border)] pt-3">
+          <span className="font-display text-base font-medium text-[var(--color-text-primary)]">
+            {card.priceLabel ?? CONTACT_FOR_PRICING}
+          </span>
+          {card.isService ? null : <StockBadge status={card.stockStatus} />}
+        </div>
+      </div>
+    </Link>
+  );
+}
