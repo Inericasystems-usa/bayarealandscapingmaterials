@@ -462,3 +462,54 @@ Write the date and the counts in the operations log.
 It asks you to type the database name, drops the collections the archive holds
 and restores them, then prints the counts. `pm2 start balm-api` and check
 section 5. The key in `api.env` must be the one the backup was made with.
+
+## 10. Delivery: cache, Brotli, IPv6, CDN
+
+The vhost already serves HTTP/2 on 443 (IPv4 and IPv6 listeners) and 301s
+www and plain http to the apex.
+
+1. **Edge cache on the VPS.** The vhost caches `/_next/static` for a year and
+   `/_next/image` results for 30 days, so Node serves each file once. Before
+   the first reload:
+
+   ```bash
+   sudo mkdir -p /var/cache/nginx/balm && sudo chown www-data: /var/cache/nginx/balm
+   sudo nginx -t && sudo systemctl reload nginx
+   # second request comes from the cache (no upstream hit in the access log):
+   curl -sI https://bayarealandscapingmaterials.com/_next/static/chunks/webpack-*.js
+   ```
+
+   After a deploy, old `/_next/static` files simply expire; nothing to purge.
+   To drop cached images after replacing photos: `sudo rm -rf /var/cache/nginx/balm/*`
+   and reload.
+
+2. **Brotli.** Ubuntu 24.04 ships the module:
+
+   ```bash
+   sudo apt install libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static
+   sudo cp deploy/nginx/snippets/balm-brotli.conf /etc/nginx/snippets/
+   sudo nginx -t && sudo systemctl reload nginx
+   curl -s -o /dev/null -w '%{size_download}\n' -H 'Accept-Encoding: br' https://bayarealandscapingmaterials.com/   # smaller than without the header
+   curl -sI -H 'Accept-Encoding: br' https://bayarealandscapingmaterials.com/ | grep -i content-encoding   # br
+   ```
+
+   The vhost includes the snippet by glob, so it is harmless before the
+   module exists. Never copy the snippet before installing the module:
+   `nginx -t` would fail.
+
+3. **IPv6.** The vhost listens on `[::]:443` already. In the Hostinger panel,
+   read the VPS's IPv6 address, then add AAAA records for
+   `bayarealandscapingmaterials.com` and `www` pointing at it. Check:
+   `curl -6 -sI https://bayarealandscapingmaterials.com/ | head -1`. Add the
+   IPv6 address to the ASV scan targets too.
+
+4. **CDN (optional, Cloudflare free tier).** Brings edge caching close to
+   visitors, Brotli and HTTP/3 without touching the VPS. If you add it:
+   proxied DNS for the apex and www; SSL/TLS mode **Full (strict)** (the
+   certificate stays on the VPS); keep "Cache Everything" off (pages are
+   cached by `/_next/static` headers already, and /pos must never be cached);
+   restore real client IPs for rate limits and login lockout by adding
+   Cloudflare's ranges with `set_real_ip_from` and `real_ip_header CF-Connecting-IP`
+   in the vhost (otherwise every visitor looks like Cloudflare); allow only
+   Cloudflare's ranges to reach 443 in the firewall; and update the ASV scan
+   targets (the scanner then sees Cloudflare's edge).

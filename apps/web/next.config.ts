@@ -239,6 +239,12 @@ function buildConfig(devServer: boolean): NextConfig {
           headers: [{ key: "Content-Security-Policy", value: csp(STAFF_POLICY, devServer) }, NOINDEX],
         })),
         ...["/download", "/api/:path*"].map((source) => ({ source, headers: [NOINDEX] })),
+        // Self-hosted photos keep their names when replaced, so not immutable:
+        // a week fresh, then served stale while the browser revalidates.
+        ...["/catalog/:path*", "/image/:path*", "/brand/:path*"].map((source) => ({
+          source,
+          headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }],
+        })),
       ];
     },
   };
