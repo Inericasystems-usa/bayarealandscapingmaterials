@@ -123,6 +123,14 @@ export function SiteFooter() {
               SMS Terms
             </Link>
             <CookieSettingsButton className="cursor-pointer text-[var(--color-moss-300)] transition-colors hover:text-[var(--color-moss-200)]" />
+            {/* California's opt-out of sale/sharing: opens the same choices, and
+                the policy section explains them. */}
+            <Link
+              href="/privacy-policy#your-privacy-choices"
+              className="text-[var(--color-moss-300)] transition-colors hover:text-[var(--color-moss-200)]"
+            >
+              Your Privacy Choices
+            </Link>
           </nav>
         </div>
       </Container>

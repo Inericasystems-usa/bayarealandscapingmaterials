@@ -90,7 +90,28 @@ export default function PrivacyPolicyPage() {
                   We share information only with service providers who help us operate (for example, payment
                   processing, our messaging provider RingCentral, and delivery/logistics), and only as needed to
                   provide those services. We may disclose information when required by law or to protect our rights.
-                  We do not sell your personal information.
+                  We do not sell your personal information for money.
+                </p>
+                <p className="mt-3">
+                  <strong>Advertising.</strong> Only if you allow advertising cookies, Google receives an identifier
+                  for your browser and the pages you visit here, so that we can show our ads to people who visited
+                  the site and measure which ads work. California law may treat this as &ldquo;sharing&rdquo;
+                  personal information for cross-context behavioral advertising. It is off until you allow it, and
+                  you can turn it off at any time (see Your Privacy Choices below).
+                </p>
+              </Block>
+
+              <Block id="your-privacy-choices" title="Your Privacy Choices">
+                <p>
+                  To opt out of the sale or sharing of your personal information, open{" "}
+                  <CookieSettingsButton
+                    label="Your Privacy Choices"
+                    className="cursor-pointer text-[var(--color-text-brand)] underline"
+                  />{" "}
+                  and turn advertising off (or choose &ldquo;Reject all&rdquo;). If your browser sends a Global
+                  Privacy Control signal, we treat it as that opt-out automatically and advertising stays off. You
+                  can also ask us by phone or e-mail using the details below. We will not treat you differently
+                  for using these choices.
                 </p>
               </Block>
 
@@ -105,8 +126,12 @@ export default function PrivacyPolicyPage() {
               <Block title="Your choices & rights">
                 <p>
                   You can opt out of marketing texts (reply STOP) and emails at any time, and request access to or
-                  correction/deletion of your information, subject to legal limits. California residents may have
-                  additional rights under the CCPA/CPRA. To make a request, contact us using the details below.
+                  correction/deletion of your information, subject to legal limits. California residents have the
+                  right to know what personal information we collect and how we use and share it, to access,
+                  correct or delete it, to opt out of its sale or sharing (above), and to limit the use of sensitive
+                  personal information (we do not use any for purposes that would require this). To make a request,
+                  or to have an authorized agent make one for you, contact us using the details below; we will
+                  verify the request before acting on it and answer within 45 days.
                 </p>
               </Block>
 
@@ -147,9 +172,9 @@ export default function PrivacyPolicyPage() {
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+function Block({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div id={id} className="scroll-mt-28">
       <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">
         {title}
       </h2>
