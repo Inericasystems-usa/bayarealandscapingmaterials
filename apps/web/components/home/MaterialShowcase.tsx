@@ -1,15 +1,16 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Search } from "lucide-react";
 import { categoryPath, productsIn } from "@/lib/catalog";
+import { SCENES, categoryScene } from "@/lib/scenes";
 
 /**
  * "Shop by material" — a calm, responsive category grid.
  *
  * Static server component. The only motion is hover feedback (image zoom +
  * arrow), which is a UX affordance, not decoration. Each tile links to its
- * catalog category page, and its image is a real product photo from that
- * category (the largest one we hold).
+ * catalog category page. Its image is the category's scene photo (lib/scenes),
+ * else the largest product photo we hold for that category.
  */
 
 const GROUPS: { slug: string; label: string; blurb: string }[] = [
@@ -23,7 +24,13 @@ const GROUPS: { slug: string; label: string; blurb: string }[] = [
   { slug: "tools-accessories", label: "Tools & Accessories", blurb: "Everything to finish the job" },
 ];
 
-function imageFor(slug: string): string | null {
+// The bark tile shows mulch in a planted bed; the category page leads with the
+// colour range, so the two don't repeat the same photo.
+const TILE_SCENES: Partial<Record<string, StaticImageData>> = { "bark-mulch": SCENES.bark.tall };
+
+function imageFor(slug: string): StaticImageData | string | null {
+  const scene = TILE_SCENES[slug] ?? categoryScene(slug)?.tall;
+  if (scene) return scene;
   const photos = productsIn(slug)
     .map((p) => p.images[0])
     .filter((i): i is NonNullable<typeof i> => Boolean(i))
@@ -32,7 +39,7 @@ function imageFor(slug: string): string | null {
 }
 
 const TILES = GROUPS.map((g) => ({ ...g, image: imageFor(g.slug) })).filter(
-  (g): g is (typeof GROUPS)[number] & { image: string } => Boolean(g.image),
+  (g): g is (typeof GROUPS)[number] & { image: StaticImageData | string } => Boolean(g.image),
 );
 
 export function MaterialShowcase() {

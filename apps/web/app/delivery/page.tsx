@@ -6,13 +6,15 @@ import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/AnimatedSection";
-import { HERO_IMAGES } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "Delivery Policy",
   description:
     "Fast, reliable delivery throughout the Bay Area and Northern California — fleet, service area, scheduling, fees, site access, and the cities we serve.",
   alternates: { canonical: "/delivery" },
+  ...sceneShare("delivery", "/delivery"),
 };
 
 const SERVICE_CITIES = [
@@ -110,7 +112,7 @@ export default function DeliveryPolicyPage() {
         eyebrow="Shipping & Logistics"
         title="Delivery Policy"
         subtitle="Fast, reliable delivery throughout the Bay Area and Northern California"
-        imageUrl={HERO_IMAGES.delivery}
+        imageUrl={SCENES.delivery.wide}
       />
 
       <Section tone="moss" density="default" containerSize="narrow">

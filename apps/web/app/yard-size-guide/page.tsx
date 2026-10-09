@@ -8,7 +8,7 @@ import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/AnimatedSection";
-import { HERO_IMAGES } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
 import React from "react";
 
 const YARD_SIZES = [
@@ -233,7 +233,7 @@ export default function YardSizeGuidePage() {
         eyebrow="Visual Reference"
         title="Yard Size Guide"
         subtitle="Interactive 3D visualizations to help you estimate exactly how much material you need — hover each card for coverage details."
-        imageUrl={HERO_IMAGES.main}
+        imageUrl={SCENES.calculator.wide}
       />
 
       <section className="bg-[var(--color-bg-surface)] py-16">

@@ -1,0 +1,7 @@
+# Brand masters (5–28 MB each): kept on the owner's machine and in the creative
+# kit, never committed or deployed. scripts/build-brand.mjs makes the web files
+# from them.
+BALM_*_8K*.png
+BALM_Brand_Board_*.png
+BALM_Social_Post_*.png
+BALM_Favicon_Exact_Artwork.ico

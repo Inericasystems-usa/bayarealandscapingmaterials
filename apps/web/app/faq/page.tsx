@@ -4,15 +4,18 @@ import { ArrowRight, ChevronDown } from "lucide-react";
 import { Button, Card } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
+import { SCENES } from "@/lib/scenes";
 import { Section } from "@/components/Section";
 import { FadeIn } from "@/components/AnimatedSection";
 import { COMPANY } from "@/lib/company";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "FAQ",
   description:
     "Answers to common questions about delivery areas, minimum orders, pickup, payment, bulk pricing, and choosing the right landscape materials at Bay Area Landscaping Materials.",
   alternates: { canonical: "/faq" },
+  ...sceneShare("raisedBed", "/faq"),
 };
 
 // "Monday–Friday 7:00 AM – 5:00 PM and Saturday–Sunday 9:00 AM – 3:30 PM"
@@ -85,6 +88,7 @@ export default function FAQPage() {
         eyebrow="Common Questions"
         title="Frequently Asked Questions"
         subtitle="Find answers to common questions about our products and services."
+        imageUrl={SCENES.raisedBed.wide}
       />
 
       <Section tone="moss" density="default" containerSize="narrow">

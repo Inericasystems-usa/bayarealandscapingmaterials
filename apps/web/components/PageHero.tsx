@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import type { ReactNode } from "react";
 import { Container } from "@balm/ui";
 import { HeroDecor } from "@/components/HeroDecor";
@@ -7,7 +7,8 @@ interface PageHeroProps {
   eyebrow?: string;
   title: ReactNode;
   subtitle?: string;
-  imageUrl?: string;
+  /** Background photo: a static import from lib/scenes, or a URL. */
+  imageUrl?: string | StaticImageData;
   children?: ReactNode;
 }
 

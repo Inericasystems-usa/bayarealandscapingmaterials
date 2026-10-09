@@ -8,7 +8,8 @@ import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
 import { FadeIn } from "@/components/AnimatedSection";
-import { CDN, HERO_IMAGES } from "@/lib/site-content";
+import { CDN } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
 
 type Category =
   | "All"
@@ -115,7 +116,7 @@ export default function GalleryPage() {
         eyebrow="Customer Projects"
         title="Project Gallery"
         subtitle="Real before & after transformations from customers across the Bay Area — drag the slider to reveal the difference our materials make."
-        imageUrl={HERO_IMAGES.main}
+        imageUrl={SCENES.beforeAfter.wide}
       />
 
       {/* Category filter */}

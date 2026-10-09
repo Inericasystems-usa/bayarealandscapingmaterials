@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, Leaf, Phone, Sprout, Truck } from "lucide-react";
-import { HERO_IMAGES } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
 import { COMPANY } from "@/lib/company";
 
 /**
@@ -117,8 +117,8 @@ export function Hero() {
         <div className={`${lift} relative`} style={{ animationDelay: "140ms" }}>
           <div className="relative h-[19vh] min-h-[150px] w-full overflow-hidden rounded-[var(--radius-2xl)] shadow-[var(--shadow-xl)] sm:h-[40vh] lg:h-[clamp(380px,66vh,600px)]">
             <Image
-              src={HERO_IMAGES.main}
-              alt="The Bay Area Landscaping Materials yard in Richmond, stocked with bulk soil, gravel, and stone"
+              src={SCENES.yard.square}
+              alt={SCENES.yard.alt}
               fill
               priority
               fetchPriority="high"

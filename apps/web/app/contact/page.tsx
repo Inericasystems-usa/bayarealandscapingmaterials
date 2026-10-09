@@ -8,13 +8,15 @@ import { FadeIn, SlideIn, StaggerContainer, StaggerItem } from "@/components/Ani
 import { TrackedLink } from "@/components/TrackedLink";
 import { COMPANY } from "@/lib/company";
 import type { TrackedLinkEvent } from "@/components/TrackedLink";
-import { HERO_IMAGES } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
 import { ContactForm } from "./ContactForm";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "Contact",
   description: `Reach ${COMPANY.legalName} at ${COMPANY.phone} or ${COMPANY.address.street}, ${COMPANY.address.city}, ${COMPANY.address.state}. We're here to help with your landscape material needs.`,
   alternates: { canonical: "/contact" },
+  ...sceneShare("reviews", "/contact"),
 };
 
 const FULL_ADDRESS = `${COMPANY.address.street}, ${COMPANY.address.city}, ${COMPANY.address.state} ${COMPANY.address.postalCode}`;
@@ -83,7 +85,7 @@ export default function ContactPage() {
         eyebrow="Get In Touch"
         title="Contact Us"
         subtitle="We're here to help with your building material needs."
-        imageUrl={HERO_IMAGES.contact}
+        imageUrl={SCENES.reviews.wide}
       />
 
       <Section tone="moss" density="default">

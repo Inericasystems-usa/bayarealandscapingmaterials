@@ -13,12 +13,14 @@ import { basePriceLabel } from "@/lib/catalog/pricing";
 import type { Route } from "next";
 import hero from "@/public/image/tool_hero.png";
 import React from "react";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "Tools & Accessories",
   description:
     "Tools and supplies for landscaping and hardscape projects: trowels, tampers and shovels, turf install supplies, landscape fabric, sealers, cleaners, adhesives and bagged products.",
   alternates: { canonical: "/tools" },
+  ...sceneShare("calculator", "/tools"),
 };
 
 // The catalog's supply categories, in the order this page shows them.

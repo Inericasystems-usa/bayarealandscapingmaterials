@@ -12,6 +12,7 @@ import {
   type CatalogProduct,
 } from "./index";
 import { variationPrices } from "./pricing";
+import { CATEGORY_SCENES, shareImage as sceneShareImage } from "@/lib/scene-meta";
 
 /**
  * Search and answer-engine metadata for the catalog pages: titles, meta
@@ -153,7 +154,15 @@ export function categoryMetadata(category: CatalogCategory, products: readonly C
   const title = categoryTitle(category);
   const description = categoryDescription(category);
   const url = categoryPath(category.slug);
+  // The category's scene photo is made for sharing (1200×628); otherwise the
+  // first product photo, otherwise the site card.
+  const scene = CATEGORY_SCENES[category.slug];
   const photo = products.find((p) => p.images.length)?.images[0];
+  const image = scene
+    ? sceneShareImage(scene)
+    : photo
+      ? { url: photo.src, width: photo.width, height: photo.height, alt: category.name }
+      : DEFAULT_SHARE_IMAGE;
   return {
     title: { absolute: title },
     description,
@@ -166,9 +175,9 @@ export function categoryMetadata(category: CatalogCategory, products: readonly C
       url,
       title,
       description,
-      images: [photo ? { url: photo.src, width: photo.width, height: photo.height, alt: category.name } : DEFAULT_SHARE_IMAGE],
+      images: [image],
     },
-    twitter: { card: "summary_large_image", title, description, images: [photo ? photo.src : DEFAULT_SHARE_IMAGE.url] },
+    twitter: { card: "summary_large_image", title, description, images: [image.url] },
   };
 }
 

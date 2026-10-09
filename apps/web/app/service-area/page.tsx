@@ -4,15 +4,18 @@ import { ArrowRight, MapPin, Truck } from "lucide-react";
 import { Button, Card, CardContent, CardDescription, CardTitle } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
+import { SCENES } from "@/lib/scenes";
 import { Section } from "@/components/Section";
 import { StoreLocator } from "@/components/maps/StoreLocator";
 import { TIERS } from "@/lib/service-area";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "Delivery service area",
   description:
     "Same-day delivery within 35 miles of Richmond, CA. Up to 70 miles across the East Bay, North Bay, Peninsula, and into the Delta. Mileage-tiered delivery fees.",
   alternates: { canonical: "/service-area" },
+  ...sceneShare("flagstone", "/service-area"),
 };
 
 export default function ServiceAreaPage() {
@@ -22,6 +25,7 @@ export default function ServiceAreaPage() {
         eyebrow="Delivery"
         title="We deliver across the Bay Area and beyond."
         subtitle="Up to 70 miles from our yard in Richmond, CA. Same-day windows within 35 miles, next-day for the rest. Mileage-tiered pricing means no surprises on the invoice."
+        imageUrl={SCENES.flagstone.wide}
       />
 
       <Section density="default">

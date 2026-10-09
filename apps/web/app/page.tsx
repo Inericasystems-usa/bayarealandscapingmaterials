@@ -7,7 +7,8 @@ import { PageShell } from "@/components/PageShell";
 import { Hero } from "@/components/home/Hero";
 import { MaterialShowcase } from "@/components/home/MaterialShowcase";
 import { GoogleReviews } from "@/components/home/GoogleReviews";
-import { SERVICES, HERO_IMAGES } from "@/lib/site-content";
+import { SERVICES } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
 import footer_img from "@/public/image/home_footer.png"
 import React from "react";
 
@@ -48,8 +49,8 @@ export default function HomePage() {
             <div className="relative self-start">
               <div className="overflow-hidden rounded-[var(--radius-2xl)] shadow-[var(--shadow-xl)]">
                 <Image
-                  src={HERO_IMAGES.about}
-                  alt="The Richmond yard and delivery fleet"
+                  src={SCENES.contractor.tall}
+                  alt={SCENES.contractor.alt}
                   width={720}
                   height={840}
                   sizes="(min-width:1024px) 40vw, 100vw"

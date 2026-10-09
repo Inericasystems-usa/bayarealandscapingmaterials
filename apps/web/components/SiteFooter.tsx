@@ -43,7 +43,7 @@ export function SiteFooter() {
         <div className="mb-10 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Company block */}
           <div>
-            <Logo tone="inverted" height={44} className="mb-4" />
+            <Logo tone="inverted" height={88} className="mb-4" />
             <p className="mb-5 text-sm leading-relaxed text-[var(--color-moss-200)]">
               {COMPANY.tagline}
             </p>

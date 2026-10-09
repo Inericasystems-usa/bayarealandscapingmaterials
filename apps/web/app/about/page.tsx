@@ -14,13 +14,16 @@ import {
   StaggerItem,
 } from "@/components/AnimatedSection";
 import { COMPANY } from "@/lib/company";
-import { HERO_IMAGES, STATS } from "@/lib/site-content";
+import { STATS } from "@/lib/site-content";
+import { SCENES } from "@/lib/scenes";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "About us",
   description:
     "Bay Area Landscaping Materials has supplied premium landscaping and building materials to contractors, landscapers, and homeowners across the East Bay and Northern California.",
   alternates: { canonical: "/about" },
+  ...sceneShare("contractor", "/about"),
 };
 
 const VALUES = [
@@ -63,7 +66,7 @@ export default function AboutPage() {
         eyebrow="Our Story"
         title={`About ${COMPANY.shortName}`}
         subtitle="Your trusted partner for premium landscaping and building materials."
-        imageUrl={HERO_IMAGES.about}
+        imageUrl={SCENES.contractor.wide}
       />
 
       <Section density="spacious">
@@ -107,8 +110,8 @@ export default function AboutPage() {
           <SlideIn direction="right" delay={0.2}>
             <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-stone-200)] shadow-[var(--shadow-lg)]">
               <Image
-                src={HERO_IMAGES.main}
-                alt="The Bay Area Landscaping Materials yard in Richmond, CA"
+                src={SCENES.yard.square}
+                alt={SCENES.yard.alt}
                 fill
                 sizes="(min-width: 1024px) 50vw, 100vw"
                 className="object-cover"

@@ -1,0 +1,7 @@
+# The site serves each scene's WebP cuts through next/image (which makes AVIF
+# and WebP at the sizes a layout needs) and the wide PNG as the share card. The
+# supplied AVIF files and the square/tall PNGs are the same pictures in other
+# formats: kept locally with the originals, not committed or deployed.
+*.avif
+*_1x1.png
+*_4x5.png

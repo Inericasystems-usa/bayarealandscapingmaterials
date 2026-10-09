@@ -4,17 +4,20 @@ import { Phone, Mail, MapPin, Clock, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
+import { SCENES } from "@/lib/scenes";
 import { Section } from "@/components/Section";
 import { FadeIn, SlideIn } from "@/components/AnimatedSection";
 import { COMPANY } from "@/lib/company";
 import { resolveQuotePrefill } from "@/lib/catalog/quote";
 import { QuoteForm } from "./QuoteForm";
+import { sceneShare } from "@/lib/scene-meta";
 
 export const metadata: Metadata = {
   title: "Request a Quote",
   description:
     "Tell us about your project and we'll provide a competitive estimate. Most quotes come back the same day — free to ask, no obligation.",
   alternates: { canonical: "/request-quote" },
+  ...sceneShare("topsoil", "/request-quote"),
 };
 
 const EXPECTATIONS = [
@@ -50,6 +53,7 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
         eyebrow="Free Estimate"
         title="Request a Quote"
         subtitle="Tell us about your project and we'll provide a competitive estimate."
+        imageUrl={SCENES.topsoil.wide}
       />
 
       <Section tone="moss" density="default">

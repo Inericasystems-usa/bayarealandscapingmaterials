@@ -80,6 +80,8 @@ const localBusinessJsonLd = {
   "@id": `https://${COMPANY.domain}#business`,
   name: COMPANY.legalName,
   url: `https://${COMPANY.domain}`,
+  logo: `https://${COMPANY.domain}/brand/logo-primary.webp`,
+  image: `https://${COMPANY.domain}/image/BALM_IMG-14_YARD_CLEAN_191x1.png`,
   telephone: COMPANY.phoneE164,
   email: COMPANY.email,
   address: {

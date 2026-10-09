@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { PageHero } from "@/components/PageHero";
+import { categoryScene } from "@/lib/scenes";
 import { Section } from "@/components/Section";
 import { Breadcrumbs } from "@/components/catalog/Breadcrumbs";
 import { CategoryGrid } from "@/components/catalog/CategoryGrid";
@@ -44,7 +45,12 @@ export default async function CategoryPage({ params }: PageProps) {
       <JsonLd data={collectionJsonLd(category.name, categoryPath(category.slug), categoryDescription(category), products)} />
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
 
-      <PageHero eyebrow={category.group || "Products"} title={category.name} subtitle={category.intro} />
+      <PageHero
+        eyebrow={category.group || "Products"}
+        title={category.name}
+        subtitle={category.intro}
+        imageUrl={categoryScene(category.slug)?.wide}
+      />
 
       <Section density="default" containerSize="wide">
         <Breadcrumbs crumbs={crumbs} />
