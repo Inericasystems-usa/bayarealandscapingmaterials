@@ -24,8 +24,17 @@ import { TrackingListeners } from "./TrackingListeners";
 export function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="page-shell pb-[5.5rem] md:pb-0">
+      {/* First tab stop: jump past the header navigation (WCAG 2.4.1). */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-[var(--radius-md)] focus:bg-[var(--color-bg-elevated)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--color-text-brand)] focus:shadow-[var(--shadow-lg)] focus:outline-2 focus:outline-[var(--color-border-focus)]"
+      >
+        Skip to content
+      </a>
       <SiteHeader />
-      <main className="flex-1">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
+        {children}
+      </main>
       <SiteFooter />
       {/* Mobile-only; the pb-* below reserves the space it occupies so it never
           covers the end of the footer. */}

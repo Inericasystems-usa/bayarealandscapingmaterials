@@ -142,7 +142,11 @@ export function QuoteForm({ defaultMaterial = "", defaultQuantity = "" }: QuoteF
 
   return (
     <form onSubmit={onSubmit} onInput={onFirstInput} noValidate className="space-y-5">
-      <input type="text" name="hp" tabIndex={-1} autoComplete="off" className="sr-only" />
+      {/* Spam trap: hidden from sight and from screen readers, so only bots fill it. */}
+      <div aria-hidden="true" className="sr-only">
+        <label htmlFor="hp-field">Leave this field empty</label>
+        <input id="hp-field" type="text" name="hp" tabIndex={-1} autoComplete="off" />
+      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField id="name" name="name" label="Your name" required autoComplete="name" />
         <TextField

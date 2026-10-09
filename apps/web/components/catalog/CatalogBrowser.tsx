@@ -94,7 +94,7 @@ export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; ca
                   : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-brand)]"
               }`}
             >
-              All Products <span className="opacity-70">({cards.length})</span>
+              All Products <span>({cards.length})</span>
             </button>
             {categories.map((category) => (
               <button
@@ -111,7 +111,7 @@ export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; ca
                     : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-brand)]"
                 }`}
               >
-                {category.name} <span className="opacity-70">({category.count})</span>
+                {category.name} <span>({category.count})</span>
               </button>
             ))}
           </div>

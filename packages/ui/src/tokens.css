@@ -77,7 +77,9 @@
 
   --color-text-primary: var(--color-stone-900);
   --color-text-secondary: var(--color-granite-700);
-  --color-text-muted: var(--color-stone-500);
+  /* stone-600, not the brand stone-500: muted text must reach 4.5:1 on the
+     moss-50/moss-100 section backgrounds (stone-500 is 4.07:1 there). */
+  --color-text-muted: var(--color-stone-600);
   --color-text-inverted: var(--color-stone-50);
   --color-text-brand: var(--color-moss-700);
 
