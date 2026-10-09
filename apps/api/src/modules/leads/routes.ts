@@ -22,6 +22,7 @@ import {
   CONVERSION_NAME,
   CONVERSION_TIMEZONE,
 } from "./offline-conversions.js";
+import { basicAuthMatches, feedCredentials, feedFrom } from "./feed.js";
 import { sha256Hex } from "../../lib/hash.js";
 import { requirePermission } from "../../lib/auth.js";
 import { config } from "../../config.js";
@@ -306,6 +307,45 @@ router.get("/offline-conversions.csv", async (req, res) => {
     .set("content-disposition", `attachment; filename="balm-offline-conversions-${f}_${t}.csv"`);
   return res.send(toGoogleCsv(rows));
 });
+
+/**
+ * The same file for Google Ads' scheduled upload (Uploads → Schedules → HTTPS),
+ * behind HTTP Basic credentials from api.env (./feed.ts). 404 until those are
+ * set, so the path gives nothing away on a server that does not use it.
+ *
+ * What a fetch does NOT do is mark anything uploaded: a fetch is not proof that
+ * Google accepted a row, and marking on fetch would lose any row Google
+ * rejected for a fixable reason. Instead every fetch serves the rows with
+ * revenue from the last 90 days that nobody has marked by hand, and Google
+ * Ads skips any it already holds: it treats the same click id, conversion
+ * name and conversion time as one conversion, and all three are fixed once an
+ * order is invoiced (./offline-conversions.ts). So a row is counted once
+ * however many times it is fetched. Rows marked through the manual flow above
+ * stay out, as they always have.
+ */
+router.get(
+  "/offline-conversions/feed.csv",
+  rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false }),
+  async (req, res) => {
+    const expected = feedCredentials();
+    if (!expected) {
+      return res.status(404).json({ error: { code: "not_found", message: `Cannot GET ${req.path}`, trace_id: req.id } });
+    }
+    if (!basicAuthMatches(req.headers.authorization, expected)) {
+      req.log.warn("offline conversion feed: wrong or missing credentials");
+      return res
+        .status(401)
+        .set("www-authenticate", 'Basic realm="BALM offline conversions", charset="UTF-8"')
+        .json({ error: { code: "unauthorized", message: "Authentication required.", trace_id: req.id } });
+    }
+    const rows = await buildOfflineConversions({ from: feedFrom() });
+    req.log.info({ rows: rows.length }, "offline conversion feed fetched");
+    return res
+      .set("content-type", "text/csv; charset=utf-8")
+      .set("cache-control", "no-store")
+      .send(toGoogleCsv(rows));
+  },
+);
 
 /**
  * Mark leads as uploaded — call ONLY after Google Ads has accepted the file.

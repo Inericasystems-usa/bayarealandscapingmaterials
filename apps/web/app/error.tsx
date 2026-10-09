@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-error";
 import Link from "next/link";
 import React from "react";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // Surfaced to the error tracker (Sentry) when configured.
     console.error(error);
+    // To the API, which passes it to Sentry when SENTRY_DSN is set.
+    reportClientError(error, "page");
   }, [error]);
 
   return (

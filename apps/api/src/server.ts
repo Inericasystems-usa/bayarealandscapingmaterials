@@ -6,8 +6,9 @@ import rateLimit from "express-rate-limit";
 import { pinoHttp, type Options as HttpLoggerOptions } from "pino-http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { config, isDev, isAllowedOrigin } from "./config.js";
+import { config, isDev, isAllowedOrigin, productionHost } from "./config.js";
 import leadsRoutes from "./modules/leads/routes.js";
+import clientErrorRoutes from "./modules/client-errors.js";
 import catalogRoutes from "./modules/catalog.js";
 import inventoryRoutes from "./modules/inventory.js";
 import vendorRoutes from "./modules/vendors.js";
@@ -160,10 +161,12 @@ export function buildServer(): Express {
 
   // JSON body — 1 MB default, but let a few routes that accept large base64
   // payloads (product images, delivery PODs with signature/photos) install their
-  // own larger parser; the global small limit would 413 them first.
+  // own larger parser; the global small limit would 413 them first. The public
+  // browser-error report installs a much smaller one (modules/client-errors.ts).
   const jsonSmall = express.json({ limit: "1mb" });
-  const largeBodyRoute = (p: string) => p.startsWith("/api/v1/uploads") || /^\/api\/v1\/deliveries\/[^/]+\/pod$/.test(p);
-  app.use((req, res, next) => (largeBodyRoute(req.path) ? next() : jsonSmall(req, res, next)));
+  const ownParserRoute = (p: string) =>
+    p.startsWith("/api/v1/uploads") || /^\/api\/v1\/deliveries\/[^/]+\/pod$/.test(p) || p === "/api/v1/client-errors";
+  app.use((req, res, next) => (ownParserRoute(req.path) ? next() : jsonSmall(req, res, next)));
 
   // Rate limit — generous default; tighter per-route inside modules. (Relaxed
   // under test, where the whole suite shares one client IP.)
@@ -219,6 +222,13 @@ export function buildServer(): Express {
     res.json({ ready: true, store: storeMode(), jobs: await jobs.health().catch(() => ({})) });
   });
 
+  // Public liveness under /api/v1/, the only API path nginx forwards, for
+  // uptime monitors and .github/workflows/production-check.yml. Says nothing
+  // about the environment or the process.
+  app.get("/api/v1/health", (_req, res) => {
+    res.set("cache-control", "no-store").json({ ok: true });
+  });
+
   // API root
   app.get("/api/v1", (_req, res) => {
     res.json({ name: "BALM API", version: "v1", docs: "/api/v1/openapi.json" });
@@ -231,6 +241,7 @@ export function buildServer(): Express {
 
   // ── Module routes (modular services behind one gateway) ──────────
   app.use("/api/v1/leads", leadsRoutes);
+  app.use("/api/v1/client-errors", clientErrorRoutes);
   app.use("/api/v1/products", catalogRoutes);
   app.use("/api/v1/inventory", inventoryRoutes);
   app.use("/api/v1/vendors", vendorRoutes);
@@ -289,6 +300,14 @@ async function main() {
   const app = buildServer();
   console.log(`🗄️  store: ${storeMode()}`);
   console.log(`🛰️  error tracking: ${isSentryEnabled() ? "sentry" : "off"}`);
+  // Not fatal: the site works without it. But on the live server nobody would
+  // hear about a crash, so say so loudly every time it starts this way.
+  if (productionHost && !isSentryEnabled()) {
+    console.warn(
+      "⚠️  SENTRY_DSN is not set on a production host: API and website errors are only in the PM2 logs. " +
+        "Set it in api.env (deploy/DEPLOY.md, \"Monitoring\").",
+    );
+  }
   if (isDbConfigured()) {
     const n = await normalizeUserEmails();
     if (n) console.log(`👤 stored ${n} e-mail address(es) in lower case`);

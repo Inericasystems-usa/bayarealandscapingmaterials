@@ -1,0 +1,61 @@
+name: production-check
+
+# Every 30 minutes: is https://bayarealandscapingmaterials.com up, is its API
+# answering, does www still send visitors to the apex, and is it a production
+# build rather than `next dev`? (scripts/check-production.mjs has the list.)
+# The site was once served by the development server for weeks and nothing
+# noticed; this is the step that notices.
+#
+# A failed scheduled run is e-mailed by GitHub to whoever last changed this
+# schedule (Settings → Notifications → Actions, on by default). Set the
+# repository secret ALERT_WEBHOOK_URL to also post to a Slack, Discord or
+# Google Chat incoming webhook. deploy/DEPLOY.md, "Monitoring", has the rest.
+#
+# Plain HTTPS GETs from GitHub's runners; nothing here can change the site.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Never on forks: a fork has no business probing the live site.
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/check-production.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the live site
+        run: node scripts/check-production.mjs https://bayarealandscapingmaterials.com
+
+      - name: Alert the webhook
+        if: ${{ failure() }}
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "ALERT_WEBHOOK_URL is not set: GitHub's e-mail is the only alert."
+            exit 0
+          fi
+          msg="bayarealandscapingmaterials.com failed its production check: $RUN_URL"
+          # "text" for Slack and Google Chat, "content" for Discord.
+          payload=$(node -e 'const m=process.argv[1]; console.log(JSON.stringify({text:m, content:m}))' "$msg")
+          curl -fsS --max-time 15 -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$ALERT_WEBHOOK_URL" > /dev/null

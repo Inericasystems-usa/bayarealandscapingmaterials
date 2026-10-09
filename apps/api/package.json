@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node ../../scripts/assert-not-production.mjs && tsx watch src/server.ts",
     "build": "tsc",
     "start": "node --import tsx src/server.ts",
     "lint": "eslint . --max-warnings 0",

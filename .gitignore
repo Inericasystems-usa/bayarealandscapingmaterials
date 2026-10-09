@@ -7,3 +7,8 @@ node_modules/
 .next/
 dist/
 balm-handover.tar.gz
+
+# pnpm only (the root preinstall refuses npm and yarn): another package
+# manager's lockfile is never the one that was tested.
+package-lock.json
+yarn.lock

@@ -20,6 +20,17 @@
  * typed events onto the dataLayer and nothing else. No component anywhere calls
  * gtag() directly.
  */
+/**
+ * Label of the "Contact form lead" conversion action, from the owner's Google
+ * Ads account (Goals → Conversions → the action → Tag setup → "Use Google Tag
+ * Manager"). Read from NEXT_PUBLIC_ADS_CONTACT_LABEL because the action does
+ * not exist yet: the owner creates it, sets the value in web.env and deploys,
+ * with no code change (deploy/DEPLOY.md, "Google Ads"). Unset or malformed →
+ * null, and the contact event simply carries no label.
+ */
+const rawContactLabel = (process.env.NEXT_PUBLIC_ADS_CONTACT_LABEL ?? "").trim();
+const contactLabel = /^[A-Za-z0-9_-]{6,64}$/.test(rawContactLabel) ? rawContactLabel : null;
+
 export const GOOGLE = {
   /** The single Google tag. Loaded by the GTM container — never by this app. */
   tagId: "GT-NGWMLXJL",
@@ -41,8 +52,12 @@ export const GOOGLE = {
   conversionLabels: {
     quoteFormLead: "wqpMCO6BquEcEMebz_pD",
     phoneClick: "WcBoCJijtPQcEMebz_pD",
-    // contactFormLead: no conversion action exists yet. Create it in Google Ads
-    // and add the label here, then add the matching GTM tag.
+    /**
+     * Null until NEXT_PUBLIC_ADS_CONTACT_LABEL is set (above). When set, the
+     * contact_form_submitted event carries it as `ads_conversion_label`, for a
+     * GTM Google Ads conversion tag to read.
+     */
+    contactFormLead: contactLabel,
   },
 
   /** GTM account/container this site is measured by. */
@@ -66,3 +81,17 @@ export const GOOGLE = {
  */
 const rawGtmId = process.env.NEXT_PUBLIC_GTM_ID ?? "";
 export const GTM_ID = /^GTM-[A-Z0-9]+$/.test(rawGtmId) ? rawGtmId : "";
+
+/**
+ * The only Google Ads account this site reports to. The review on 7 Oct 2026
+ * saw a second one, AW-18488088344, firing on the live site; it is in no file
+ * here, so it comes from a tag inside the GTM container (deploy/DEPLOY.md,
+ * "Google Ads", has what to check there). lib/google-tags.test.ts fails if any
+ * other AW- id is ever written into the code.
+ */
+export const ALLOWED_ADS_IDS: readonly string[] = [GOOGLE.adsConversionId];
+
+/** Whether a Google Ads `send_to` (AW-<id> or AW-<id>/<label>) names our account. */
+export function isAllowedAdsTarget(sendTo: string): boolean {
+  return ALLOWED_ADS_IDS.includes(sendTo.split("/")[0] ?? "");
+}

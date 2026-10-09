@@ -14,14 +14,13 @@
  * type system enforces the rule too.
  */
 
-// Fall back to the current host (not a hardcoded localhost) so a missing
-// NEXT_PUBLIC_API_URL in prod can't silently POST every lead to the visitor's
-// own machine and lose it.
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:4000`
-    : "http://localhost:4000");
+// Same origin, always: the form posts to /api/v1/leads/... on whatever host
+// served the page. nginx forwards /api/v1/ to the API in production, and
+// next.config.ts rewrites the two lead paths to it everywhere else. So www
+// against the apex, a missing or stale NEXT_PUBLIC_API_URL, or a CORS list
+// that lags behind a new domain can never cost a lead: the browser never
+// makes a cross-origin request here at all.
+const API = "";
 
 export interface FieldError {
   path: string;
@@ -80,5 +79,5 @@ export async function postLead(
   return { ok: false, status: res.status, leadId: null };
 }
 
-/** The API origin, exported so callers can log where a failure went. */
+/** The API origin ("" = this site), exported so callers can log where a failure went. */
 export const LEADS_API = API;

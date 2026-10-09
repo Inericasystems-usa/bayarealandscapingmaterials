@@ -1,0 +1,70 @@
+name: ci
+
+# Every push and pull request: install exactly what the lockfile says, then
+# lint, typecheck, test and build the whole workspace. A red run here is the
+# point to stop; the production deploy (deploy/DEPLOY.md) builds the same way.
+#
+# Needs no secrets. The web build runs with no NEXT_PUBLIC_* values, which
+# gives an untagged build (no Tag Manager, no Maps key) that proves it
+# compiles; the real values are only ever read on the server at deploy time.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to a pull request makes the older run pointless; pushes to a
+  # branch each keep their own run so main always has a result per commit.
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Version from package.json "packageManager" (pnpm@9.12.0).
+      - uses: pnpm/action-setup@v4
+
+      # Node 22: the version production runs (scripts/deploy-production.sh
+      # refuses anything older than 22; Node 20 is end-of-life). package.json
+      # "engines" still accepts 20.11+ for developer machines.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The API tests start a throwaway MongoDB (mongodb-memory-server). Its
+      # binary is a ~70 MB download on first use; keep it between runs.
+      - name: Where the test MongoDB binary lives
+        run: echo "MONGOMS_DOWNLOAD_DIR=$HOME/.cache/mongodb-binaries" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

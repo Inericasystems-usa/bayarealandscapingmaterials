@@ -82,6 +82,10 @@ export const envSchema = z.object({
   // Owner phone (E.164) texted when a website contact/quote lead arrives, so a
   // new lead is never silently missed. No-op until set (and RC configured).
   LEAD_NOTIFY_SMS: z.string().optional(),
+  // Google Ads' scheduled upload of the offline-conversion file (HTTP Basic).
+  // Off unless both are set and the password is long (modules/leads/feed.ts).
+  OFFLINE_CONVERSIONS_FEED_USER: z.string().optional(),
+  OFFLINE_CONVERSIONS_FEED_PASSWORD: z.string().optional(),
 
   // Telematics — when API_URL + API_KEY are set the ticker polls a live provider
   // (Samsara/Geotab/etc); otherwise it walks trucks for the demo. INGEST_TOKEN

@@ -9,6 +9,7 @@
  * on click, on validation passing, before the request, or after a failure.
  */
 
+import { GOOGLE } from "../google-tags";
 import type { AnalyticsEvent, CallLocation, UserData } from "./types";
 
 declare global {
@@ -78,7 +79,16 @@ export function trackContactFormSubmitted(p: {
   leadId: string;
   userData: UserData;
 }): void {
-  track({ event: "contact_form_submitted", lead_id: p.leadId, user_data: p.userData });
+  // The Ads label rides along only once the owner has created the action and
+  // set NEXT_PUBLIC_ADS_CONTACT_LABEL (lib/google-tags.ts); until then the
+  // event is unchanged and GA4 still counts it.
+  const label = GOOGLE.conversionLabels.contactFormLead;
+  track({
+    event: "contact_form_submitted",
+    lead_id: p.leadId,
+    user_data: p.userData,
+    ...(label ? { ads_conversion_label: label } : {}),
+  });
 }
 
 /* ── Engagement ──────────────────────────────────────────────────────── */

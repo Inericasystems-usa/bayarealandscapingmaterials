@@ -52,6 +52,8 @@ export type AnalyticsEvent =
       event: "contact_form_submitted";
       lead_id: string;
       user_data: UserData;
+      /** Google Ads conversion label, present only when one is configured. */
+      ads_conversion_label?: string;
     }
   | {
       event: "phone_click";

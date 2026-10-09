@@ -9,7 +9,10 @@
   },
   "packageManager": "pnpm@9.12.0",
   "scripts": {
+    "preinstall": "node -e \"const a=process.env.npm_config_user_agent||'';if(a&&!a.startsWith('pnpm/')){console.error('This repository installs with pnpm only (package.json packageManager): corepack enable && pnpm install');process.exit(1)}\"",
     "dev": "node scripts/assert-not-production.mjs && turbo run dev --parallel",
+    "start": "pm2 startOrReload ecosystem.config.cjs --update-env",
+    "deploy:check": "node scripts/check-production.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

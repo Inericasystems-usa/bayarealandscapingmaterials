@@ -162,6 +162,8 @@ describe("conversion events", () => {
   it("contact: exactly one event", () => {
     trackContactFormSubmitted({ leadId: "lead_c1", userData });
     expect(eventsNamed("contact_form_submitted")).toHaveLength(1);
+    // No Ads action configured in tests: no label, rather than an empty one.
+    expect(eventsNamed("contact_form_submitted")[0]).not.toHaveProperty("ads_conversion_label");
   });
 
   it("phone click: exactly one event, with location and path", () => {
@@ -228,6 +230,14 @@ describe("conversion fires only after server success", () => {
     const result = await submitAndMaybeTrack({});
     expect(result.leadId).toBe("lead_1");
     expect(eventsNamed("quote_form_submitted")).toHaveLength(1);
+  });
+
+  it("posts to this site's own origin, so www and the apex both work", async () => {
+    const f = vi.fn(() => json(201, { ok: true, id: "lead_same_origin" }));
+    vi.stubGlobal("fetch", f);
+    await postLead("contact", {});
+    await postLead("quote", {});
+    expect(f.mock.calls.map((c) => (c as unknown[])[0])).toEqual(["/api/v1/leads/contact", "/api/v1/leads/quote"]);
   });
 
   it("500 → ZERO conversion events", async () => {

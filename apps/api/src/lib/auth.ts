@@ -16,7 +16,7 @@ function isPublic(method: string, rawUrl: string): boolean {
 
   // Liveness/readiness + API root. (/metrics needs a session: process gauges
   // aren't for the internet.)
-  if (method === "GET" && (path === "/health" || path === "/ready" || path === "/api/v1")) return true;
+  if (method === "GET" && (path === "/health" || path === "/ready" || path === "/api/v1" || path === "/api/v1/health")) return true;
   // Auth endpoints self-handle (login is public; /me and /logout 401 on their own).
   if (path.startsWith("/api/v1/auth/")) return true;
   // Public website: browse the catalog…
@@ -25,6 +25,11 @@ function isPublic(method: string, rawUrl: string): boolean {
   if (method === "GET" && path.startsWith("/api/v1/uploads/")) return true;
   // …and submit the contact / quote forms (but NOT GET /leads, the admin list).
   if (method === "POST" && (path === "/api/v1/leads/contact" || path === "/api/v1/leads/quote")) return true;
+  // …and report a browser error (small, scrubbed and rate-limited: modules/client-errors.ts).
+  if (method === "POST" && path === "/api/v1/client-errors") return true;
+  // Google Ads fetches the offline-conversion file on a schedule (HTTP Basic
+  // credentials checked by the route itself; off unless configured).
+  if (method === "GET" && path === "/api/v1/leads/offline-conversions/feed.csv") return true;
   // RingCentral posts inbound SMS + delivery receipts here (verified by its own token).
   if (method === "POST" && path === "/api/v1/messaging/webhook") return true;
   // Telematics platform/device pushes GPS positions here (verified by its own token).

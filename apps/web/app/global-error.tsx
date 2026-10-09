@@ -2,11 +2,14 @@
 
 import React from "react";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-error";
 
 /** Last-resort boundary that replaces the root layout if it throws. */
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    // To the API, which passes it to Sentry when SENTRY_DSN is set.
+    reportClientError(error, "global");
   }, [error]);
 
   return (

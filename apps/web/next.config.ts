@@ -193,8 +193,10 @@ function buildConfig(devServer: boolean): NextConfig {
         // /terms is the short URL carriers and SMS disclosures reference; the page
         // itself lives at /terms-of-service. Permanent so the canonical stays single.
         { source: "/terms", destination: "/terms-of-service", permanent: true },
-        // One canonical host (lib/company.ts). On www the API is cross-origin and
-        // its CORS list does not include www, so forms there cannot submit.
+        // One canonical host (lib/company.ts), for search engines and so the
+        // site's cookies and consent answer live in one place. nginx sends www
+        // to the apex before Next sees it; this covers any other proxy. Lead
+        // forms post to their own origin (lib/leads-client.ts) and work on both.
         {
           source: "/:path((?!\\.well-known/).*)",
           has: [{ type: "host", value: `www\\.${COMPANY.domain.replace(/\./g, "\\.")}` }],
@@ -210,6 +212,12 @@ function buildConfig(devServer: boolean): NextConfig {
       const api = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
       return [
         { source: "/api/v1/uploads/:id", destination: `${api}/api/v1/uploads/:id` },
+        // The lead forms and the error report post to this site's own origin
+        // (lib/leads-client.ts, lib/report-error.ts). In production nginx sends
+        // /api/v1/ straight to the API and these never run; on a dev machine or
+        // a counter PC without nginx, Next forwards them.
+        { source: "/api/v1/leads/:endpoint(contact|quote)", destination: `${api}/api/v1/leads/:endpoint` },
+        { source: "/api/v1/client-errors", destination: `${api}/api/v1/client-errors` },
         // Browsers and crawlers still request /favicon.ico; answer with the generated icon.
         { source: "/favicon.ico", destination: "/icon" },
       ];

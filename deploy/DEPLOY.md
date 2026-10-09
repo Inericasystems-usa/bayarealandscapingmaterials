@@ -149,13 +149,14 @@ may be a secret:
 
 | Name | Value / what it does |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://bayarealandscapingmaterials.com`. Without it products and lead forms call port 4000, which is closed. Required. |
+| `NEXT_PUBLIC_API_URL` | `https://bayarealandscapingmaterials.com`. Without it the product pages and the POS call port 4000, which is closed. Required. (Lead forms and error reports always post to the page's own origin, so they work on www and the apex either way.) |
 | `NEXT_PUBLIC_GTM_ID` | `GTM-5MXCJBSJ`. Without it no Google tags load. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | browser Maps key (address autocomplete, store locator); restrict it to the site's referrers in Google Cloud |
 | `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | optional map style |
 | `NEXT_PUBLIC_MAP_TILE_URL` | optional fleet-map tiles (OpenStreetMap when unset) |
 | `NEXT_PUBLIC_BRIDGE_URL` | leave unset (`http://localhost:9110`, the counter-PC bridge) |
 | `NEXT_PUBLIC_POS_EDITION` | leave unset (owned edition) |
+| `NEXT_PUBLIC_ADS_CONTACT_LABEL` | optional: label of the Google Ads "Contact form lead" action (section 12). Unset until the owner creates it |
 | `GOOGLE_MAPS_SERVER_KEY` | server-only Routes key (driving distances) |
 | `API_INTERNAL_URL` | `http://127.0.0.1:4000` (the API listens on IPv4 loopback only) |
 
@@ -325,7 +326,10 @@ curl -s -o /dev/null -w '%{http_code}\n' https://bayarealandscapingmaterials.com
 curl -sI https://www.bayarealandscapingmaterials.com/contact | grep -iE '^(HTTP|location)'   # 301, https://bayarealandscapingmaterials.com/contact
 curl -sI http://bayarealandscapingmaterials.com/ | grep -iE '^(HTTP|location)'               # 301, https://bayarealandscapingmaterials.com/
 curl -s -D - -o /dev/null -H 'Origin: http://10.20.30.40:8080' https://bayarealandscapingmaterials.com/api/v1 | grep -ci '^access-control-allow-origin'   # 0
+curl -s https://bayarealandscapingmaterials.com/api/v1/health                 # {"ok":true}
 ```
+
+Most of this in one command, from a checkout: `pnpm deploy:check` (section 11).
 
 On the server:
 
@@ -348,7 +352,8 @@ sudo bash infra/pci/host/60-production-mode.sh                     # read-only: 
 sudo bash infra/pci/host/60-production-mode.sh --mark-production   # writes /etc/inerica/production
 ```
 
-From then on `pnpm dev` and `next dev` refuse to start on this host, and the
+From then on `pnpm dev`, `next dev` (even started directly) and the API's
+`pnpm dev` (`tsx watch`) refuse to start on this host, and the
 API refuses any `NODE_ENV` other than production. Then request the ASV rescan.
 
 ## 7. Rollback
@@ -571,3 +576,88 @@ www and plain http to the apex.
    in the vhost (otherwise every visitor looks like Cloudflare); allow only
    Cloudflare's ranges to reach 443 in the firewall; and update the ASV scan
    targets (the scanner then sees Cloudflare's edge).
+
+## 11. CI, monitoring and alerts
+
+What watches the site, and what the owner needs to switch on once.
+
+- **CI** (`.github/workflows/ci.yml`): every push and pull request installs
+  with `pnpm install --frozen-lockfile` and runs lint, typecheck, tests and the
+  production build, with no secrets. Deploy only a commit whose run is green.
+  The root `preinstall` stops `npm install` and `yarn`, which would ignore
+  `pnpm-lock.yaml` and install versions CI never tested. It is inline in
+  `package.json` so the Docker builds, which copy only the manifests, run it too.
+- **Production check** (`.github/workflows/production-check.yml`): every 30
+  minutes, and on demand from the Actions tab, plain HTTPS GETs check that the
+  home page answers 200 and is a production build (no `next dev` markers, no
+  `X-Powered-By`), that `/api/v1/health` answers `{"ok":true}`, and that www
+  301s to the apex. The same check runs by hand from any computer or the
+  server: `pnpm deploy:check` (or `node scripts/check-production.mjs <base URL>`).
+  - A failed run is e-mailed by GitHub to whoever last edited the schedule.
+    Make sure that person has Settings → Notifications → Actions → "Send
+    notifications for failed workflows only" on.
+  - For a chat alert as well, add the repository secret `ALERT_WEBHOOK_URL`
+    (a Slack, Discord or Google Chat incoming webhook).
+  - GitHub pauses scheduled workflows in a repository with no commits for 60
+    days and says so by e-mail; re-enable it from the Actions tab.
+- **Error tracking (Sentry).** Create one Sentry project (Node) and put its DSN
+  in `api.env` as `SENTRY_DSN`, then `pm2 restart balm-api`. The API reports its
+  own 5xx errors and crashes, and the website's error pages forward browser
+  errors to it (`POST /api/v1/client-errors`: message, Next's digest and the
+  page path only, scrubbed of e-mails, numbers and card numbers, 4 KB and ten a
+  minute per visitor at most). The website loads no Sentry script. Without the
+  DSN the API starts anyway and prints a `SENTRY_DSN is not set on a production
+  host` warning in `pm2 logs balm-api` on every start. In Sentry, add an alert
+  rule "a new issue is created → e-mail".
+- **Uptime monitor (outside GitHub).** The scheduled check can lag by up to an
+  hour when GitHub is busy. Add a free external monitor (UptimeRobot, Better
+  Stack or similar) on `https://bayarealandscapingmaterials.com/` and
+  `https://bayarealandscapingmaterials.com/api/v1/health`, every 5 minutes,
+  keyword `"ok":true` on the second, alerting the owner by e-mail or SMS.
+- **The release itself** is covered above: build in a new release directory
+  while the old one keeps serving (2.4, 8), switch with health checks and an
+  automatic return to the previous release (2.5, 8), verify with curl
+  (section 5) and roll back by hand if needed (section 7).
+
+## 12. Google Ads and Tag Manager (owner)
+
+Things only the owner can do, in the Google accounts. The IDs the site uses
+are listed in `apps/web/lib/google-tags.ts`.
+
+1. **A second Ads account fires on the site.** The review on 7 Oct 2026 saw
+   conversions going to `AW-18488088344` as well as BALM's `AW-18242325959`.
+   That ID is in no file in this repository (a test keeps it that way), so it
+   comes from inside the GTM container `GTM-5MXCJBSJ`. In Tag Manager, search
+   the workspace for `18488088344` (Tags, and the Google tag's destinations),
+   find out whose account it is, and delete or pause that tag unless the owner
+   knowingly shares conversions with it. Then publish the container and check
+   with Tag Assistant that only `AW-18242325959` receives hits.
+2. **Contact form conversions.** Create a conversion action in Google Ads
+   (Goals → Conversions → New → Website → manual, category "Contact", one
+   conversion per click). From its tag setup ("Use Google Tag Manager") copy
+   the **conversion label**, put it in `web.env` as
+   `NEXT_PUBLIC_ADS_CONTACT_LABEL` and deploy. In GTM add a Data Layer
+   Variable `ads_conversion_label`, and a "Google Ads Conversion Tracking" tag
+   with conversion ID `18242325959`, that label variable, and a Custom Event
+   trigger `contact_form_submitted`. The event fires only after the server
+   has saved the lead.
+3. **Offline conversions on a schedule.** Delivered orders that came from an
+   ad click are reported to Google Ads with their real value excluding tax
+   (conversion name `Qualified Delivery (offline)`, created as an "Import →
+   clicks" action in Google Ads with that exact name).
+   - In `api.env` set `OFFLINE_CONVERSIONS_FEED_USER` (any name, e.g.
+     `google-ads`) and `OFFLINE_CONVERSIONS_FEED_PASSWORD` (`openssl rand -hex 24`;
+     shorter than 32 characters and the feed stays off), then
+     `pm2 restart balm-api`.
+   - In Google Ads: Goals → Conversions → Uploads → Schedules → Add schedule →
+     source **HTTPS**, URL
+     `https://bayarealandscapingmaterials.com/api/v1/leads/offline-conversions/feed.csv`,
+     the username and password from `api.env`, daily.
+   - The file holds only the click id, conversion name, time, value and
+     currency, for invoices from the last 90 days not already marked uploaded
+     by hand. A fetch marks nothing: Google Ads counts a click id, conversion
+     name and conversion time once however often it sees the row, so re-serving
+     a row is safe, and a row Google rejected stays in the file until it is
+     accepted or ages out. Check Uploads → the schedule's history for errors.
+   - The manual route (POS: download the CSV, upload it, then mark the rows
+     uploaded) keeps working; rows marked that way leave the scheduled file.

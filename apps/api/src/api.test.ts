@@ -1490,3 +1490,100 @@ describe("transaction mode", () => {
     expect(log).toEqual([expect.stringMatching(/transactions: OFF/), expect.stringMatching(/transactions: OFF/)]);
   });
 });
+
+describe("public health under /api/v1", () => {
+  it("answers {ok:true} without a session and without any detail about the server", async () => {
+    const res = await inject({ url: "/api/v1/health" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(res.headers["cache-control"]).toBe("no-store");
+  });
+});
+
+describe("browser error reports", () => {
+  it("are public, answer 204, and reject unknown fields", async () => {
+    const ok = await inject({
+      method: "POST",
+      url: "/api/v1/client-errors",
+      payload: { message: "Cannot read properties of undefined", digest: "123abc", path: "/products/topsoil", boundary: "page" },
+    });
+    expect(ok.statusCode).toBe(204);
+    const extra = await inject({ method: "POST", url: "/api/v1/client-errors", payload: { message: "x", cookie: "balm_session=1" } });
+    expect(extra.statusCode).toBe(422);
+    const badDigest = await inject({ method: "POST", url: "/api/v1/client-errors", payload: { digest: "<script>" } });
+    expect(badDigest.statusCode).toBe(422);
+  });
+
+  it("refuse a body over 4 KB", async () => {
+    const res = await inject({ method: "POST", url: "/api/v1/client-errors", payload: { message: "x".repeat(5000) } });
+    expect(res.statusCode).toBe(413);
+  });
+
+  it("keep no e-mail, phone, card number or query string", async () => {
+    const { scrubClientText, scrubClientPath } = await import("./modules/client-errors.js");
+    const text = scrubClientText("failed for owner@example.com at (510) 555-0199 card 4111 1111 1111 1111 line 12");
+    expect(text).not.toMatch(/owner@example\.com|555-0199|4111/);
+    expect(text).toMatch(/line 12/);
+    expect(scrubClientPath("/request-quote?email=a@b.co&gclid=abc#top")).toBe("/request-quote");
+    expect(scrubClientPath("https://evil.example/x")).toBe("");
+  });
+});
+
+describe("offline conversion feed (scheduled Google Ads upload)", () => {
+  const URL_ = "/api/v1/leads/offline-conversions/feed.csv";
+  const USER = "google-ads";
+  const PASSWORD = "p".repeat(20) + "-long-random-feed-password-0123456789";
+  const basic = (u: string, p: string) => `Basic ${Buffer.from(`${u}:${p}`).toString("base64")}`;
+
+  it("is off (404) until both credentials are set, and off with a short password", async () => {
+    delete process.env.OFFLINE_CONVERSIONS_FEED_USER;
+    delete process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD;
+    expect((await inject({ url: URL_ })).statusCode).toBe(404);
+    process.env.OFFLINE_CONVERSIONS_FEED_USER = USER;
+    process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD = "short";
+    expect((await inject({ url: URL_, headers: { authorization: basic(USER, "short") } })).statusCode).toBe(404);
+  });
+
+  it("asks for credentials and refuses wrong ones", async () => {
+    process.env.OFFLINE_CONVERSIONS_FEED_USER = USER;
+    process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD = PASSWORD;
+    const none = await inject({ url: URL_ });
+    expect(none.statusCode).toBe(401);
+    expect(String(none.headers["www-authenticate"])).toMatch(/^Basic /);
+    expect((await inject({ url: URL_, headers: { authorization: basic(USER, PASSWORD + "x") } })).statusCode).toBe(401);
+    expect((await inject({ url: URL_, headers: { authorization: basic("someone", PASSWORD) } })).statusCode).toBe(401);
+    expect((await inject({ url: URL_, headers: { authorization: `Bearer ${PASSWORD}` } })).statusCode).toBe(401);
+  });
+
+  it("serves only click id, conversion name, time, value and currency, and marks nothing uploaded", async () => {
+    process.env.OFFLINE_CONVERSIONS_FEED_USER = USER;
+    process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD = PASSWORD;
+    const { appendLead, recordInvoicedValue, leads } = await import("./modules/leads/store.js");
+    const id = `lead_feed_${Date.now()}`;
+    const recent = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    await appendLead({
+      id,
+      type: "quote",
+      receivedAt: recent,
+      payload: { name: "Feed Test", email: "feed@example.com", phone: "5105550123" },
+      gclid: "Cj0KCQ_feedtest",
+    });
+    expect(await recordInvoicedValue(id, { value: 420, at: recent, orderId: "ord_feed", orderNumber: "ORD-FEED-1" })).toBe(true);
+
+    for (let i = 0; i < 2; i++) {
+      const res = await inject({ url: URL_, headers: { authorization: basic(USER, PASSWORD) } });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["content-type"]).toMatch(/text\/csv/);
+      expect(res.headers["cache-control"]).toBe("no-store");
+      const lines = res.body.trim().split("\n");
+      expect(lines[1]).toBe("Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency");
+      const row = lines.find((l) => l.startsWith("Cj0KCQ_feedtest,"));
+      expect(row).toMatch(/^Cj0KCQ_feedtest,[^,]+,\d{4}-\d\d-\d\d \d\d:\d\d:\d\d[+-]\d\d:\d\d,420\.00,USD$/);
+      expect(res.body).not.toMatch(/Feed Test|feed@example\.com|5105550123|ORD-FEED-1/);
+    }
+    // Fetching is not proof that Google accepted it: still unmarked.
+    expect((await leads.find(id))?.conversion_uploaded_at).toBeFalsy();
+    delete process.env.OFFLINE_CONVERSIONS_FEED_USER;
+    delete process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD;
+  });
+});
