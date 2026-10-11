@@ -181,6 +181,12 @@ function buildConfig(devServer: boolean): NextConfig {
     // Typed <Link> hrefs (moved out of `experimental` in Next 15).
     typedRoutes: true,
 
+    // Put <title> and meta description in the <head> of every response, not
+    // only for known crawlers: on the few on-demand pages (/request-quote)
+    // Next otherwise streams them into the body, which audits and some
+    // link-preview bots read as missing.
+    htmlLimitedBots: /.*/,
+
     images: {
       formats: ["image/avif", "image/webp"],
       // Only BALM's own media on the CDN. Photos uploaded through the POS are

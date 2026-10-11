@@ -119,9 +119,9 @@ export default function FAQPage() {
 
         <FadeIn delay={0.2} className="mt-12">
           <div className="rounded-[var(--radius-lg)] bg-[var(--color-bg-page)] p-8 text-center">
-            <h3 className="font-display text-2xl font-light text-[var(--color-text-primary)]">
+            <h2 className="font-display text-2xl font-light text-[var(--color-text-primary)]">
               Still Have Questions?
-            </h3>
+            </h2>
             <p className="mt-3 text-[var(--color-text-secondary)]">
               Our team is ready to help. Contact us for personalized assistance.
             </p>

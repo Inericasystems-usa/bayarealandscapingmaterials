@@ -60,6 +60,7 @@ export function ProductGallery({ images, name }: { images: DisplayImage[]; name:
           fill
           priority={index === 0}
           fetchPriority={index === 0 ? "high" : "auto"}
+          quality={70}
           sizes="(min-width: 1280px) 600px, (min-width: 1024px) 45vw, 90vw"
           className={`${current.kind ? "object-cover" : "object-contain"} transition-transform duration-700 ease-out motion-safe:group-hover:scale-[1.04]`}
         />

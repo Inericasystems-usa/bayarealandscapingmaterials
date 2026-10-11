@@ -122,7 +122,8 @@ export function Hero() {
               fill
               priority
               fetchPriority="high"
-              sizes="(min-width:1024px) 46vw, 100vw"
+              quality={60}
+              sizes="(min-width:1024px) 46vw, calc(100vw - 2rem)"
               className="object-cover"
             />
             <div

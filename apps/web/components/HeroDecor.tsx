@@ -1,6 +1,4 @@
-"use client";
-
-import { motion } from "framer-motion";
+import type { CSSProperties } from "react";
 
 // Deterministic positions (no Math.random — SSR-safe).
 const MOTES = [
@@ -14,26 +12,34 @@ const MOTES = [
   { x: 70, y: 78, s: 6, d: 0.9, t: 5 },
 ];
 
-/** Subtle animated glow + floating motes for hero sections. Decorative only. */
+/**
+ * Subtle breathing glow + floating motes for page heroes. Decorative only,
+ * CSS animations (opacity/transform, composited) with no client JavaScript,
+ * still when the visitor prefers reduced motion (globals.css).
+ */
 export function HeroDecor() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <motion.div
-        className="absolute inset-0"
-        animate={{ opacity: [0.18, 0.4, 0.18] }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      <div
+        className="hero-glow absolute inset-0"
         style={{
-          background:
-            "radial-gradient(ellipse 55% 50% at 18% 60%, rgba(116,175,142,0.30) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 55% 50% at 18% 60%, rgba(116,175,142,0.30) 0%, transparent 70%)",
         }}
       />
       {MOTES.map((m, i) => (
-        <motion.span
+        <span
           key={i}
-          className="absolute rounded-full bg-[color-mix(in_oklab,var(--color-moss-300)_30%,transparent)]"
-          style={{ left: `${m.x}%`, top: `${m.y}%`, width: m.s, height: m.s }}
-          animate={{ y: [0, -26, 0], opacity: [0.2, 0.6, 0.2], scale: [1, 1.3, 1] }}
-          transition={{ duration: m.t, delay: m.d, repeat: Infinity, ease: "easeInOut" }}
+          className="hero-mote absolute rounded-full bg-[color-mix(in_oklab,var(--color-moss-300)_30%,transparent)]"
+          style={
+            {
+              left: `${m.x}%`,
+              top: `${m.y}%`,
+              width: m.s,
+              height: m.s,
+              animationDuration: `${m.t}s`,
+              animationDelay: `${m.d}s`,
+            } as CSSProperties
+          }
         />
       ))}
     </div>

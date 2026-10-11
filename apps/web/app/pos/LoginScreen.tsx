@@ -40,7 +40,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div
+    <main
       data-theme="dark"
       className="grid min-h-[100dvh] place-items-center bg-[var(--color-moss-950)] p-4"
     >
@@ -82,7 +82,7 @@ export function LoginScreen() {
               htmlFor="login-password"
               className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]"
             >
-              Password or PIN
+              Password
             </label>
             <input
               id="login-password"
@@ -116,6 +116,6 @@ export function LoginScreen() {
           </a>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

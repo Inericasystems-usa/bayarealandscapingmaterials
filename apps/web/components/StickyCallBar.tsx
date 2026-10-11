@@ -31,7 +31,8 @@ export function StickyCallBar() {
   }, []);
 
   return (
-    <div
+    <aside
+      aria-label="Call or get a quote"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] md:hidden"
       // Keep the buttons clear of the iOS home indicator / gesture bar.
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
@@ -71,6 +72,6 @@ export function StickyCallBar() {
           Get a quote
         </Link>
       </div>
-    </div>
+    </aside>
   );
 }

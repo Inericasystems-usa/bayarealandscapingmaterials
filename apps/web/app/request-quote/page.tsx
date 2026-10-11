@@ -61,7 +61,7 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
           <SlideIn direction="left" className="lg:col-span-2">
             <Card padding="lg">
               <CardContent>
-                <CardTitle className="font-display text-2xl text-[var(--color-text-primary)]">
+                <CardTitle as="h2" className="font-display text-2xl text-[var(--color-text-primary)]">
                   Project Details
                 </CardTitle>
                 <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
@@ -88,7 +88,7 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
             <div className="space-y-6">
               <Card>
                 <CardContent>
-                  <CardTitle className="font-display text-lg text-[var(--color-text-primary)]">
+                  <CardTitle as="h2" className="font-display text-lg text-[var(--color-text-primary)]">
                     Contact Info
                   </CardTitle>
                   <div className="mt-4 space-y-4 text-sm">
@@ -134,7 +134,7 @@ export default async function RequestQuotePage({ searchParams }: PageProps) {
 
               <Card variant="accent">
                 <CardContent>
-                  <CardTitle className="font-display text-lg text-[var(--color-text-primary)]">
+                  <CardTitle as="h2" className="font-display text-lg text-[var(--color-text-primary)]">
                     What to Expect
                   </CardTitle>
                   <div className="mt-4 space-y-3">

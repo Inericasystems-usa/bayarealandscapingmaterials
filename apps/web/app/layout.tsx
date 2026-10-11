@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Open_Sans, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { COMPANY } from "@/lib/company";
 import { CONSENT_BOOT_SCRIPT } from "@/lib/consent";
@@ -16,28 +16,46 @@ import React from "react";
 // Fraunces was loaded but the tokens asked for Montserrat, which nothing
 // loaded: every heading fell back to the system font.
 //
+// Self-hosted from app/fonts (latin subset, SIL Open Font License): the build
+// no longer needs network access to Google Fonts, and the files are the same
+// ones Google serves.
+//
 // Headings swap in (they carry the brand); body and mono text use `optional`,
 // so a slow first visit keeps the metric-matched fallback instead of re-wrapping
 // paragraphs mid-read (layout shift); the fonts are cached for the next page.
-const montserrat = Montserrat({
-  subsets: ["latin"],
+const montserrat = localFont({
+  src: "./fonts/montserrat-latin-wght-normal.woff2",
+  weight: "100 900",
   variable: "--font-display",
   display: "swap",
+  fallback: ["ui-sans-serif", "system-ui", "Segoe UI", "sans-serif"],
 });
 
-const openSans = Open_Sans({
-  subsets: ["latin"],
+const openSans = localFont({
+  src: [
+    { path: "./fonts/open-sans-latin-400-normal.woff2", weight: "400" },
+    { path: "./fonts/open-sans-latin-500-normal.woff2", weight: "500" },
+    { path: "./fonts/open-sans-latin-600-normal.woff2", weight: "600" },
+    { path: "./fonts/open-sans-latin-700-normal.woff2", weight: "700" },
+  ],
   variable: "--font-sans",
   display: "optional",
-  weight: ["400", "500", "600", "700"],
+  // Not preloaded: four body weights competed with the hero photo for a
+  // phone's bandwidth. Body text paints in the metric-matched fallback on a
+  // first visit (display: optional) and in Open Sans once cached.
+  preload: false,
+  fallback: ["ui-sans-serif", "system-ui", "Segoe UI", "sans-serif"],
 });
 
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrains = localFont({
+  src: [
+    { path: "./fonts/jetbrains-mono-latin-400-normal.woff2", weight: "400" },
+    { path: "./fonts/jetbrains-mono-latin-500-normal.woff2", weight: "500" },
+  ],
   variable: "--font-mono",
   display: "optional",
-  weight: ["400", "500"],
   preload: false, // only small labels use it
+  fallback: ["ui-monospace", "Consolas", "monospace"],
 });
 
 export const viewport: Viewport = {
