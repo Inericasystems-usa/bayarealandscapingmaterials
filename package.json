@@ -30,7 +30,7 @@
     "turbo": "^2.3.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.62.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "prettier": {
     "semi": true,
@@ -38,5 +38,22 @@
     "trailingComma": "all",
     "printWidth": 100,
     "plugins": []
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-addr": "^2.0.8",
+      "qs": "^6.16.0",
+      "sharp": "^0.35.5",
+      "postcss": "^8.5.29",
+      "nanoid@<4": "^3.3.18",
+      "source-map-js": "^1.2.2",
+      "dompurify": "^3.4.16",
+      "fast-copy@<4": "^3.1.0",
+      "brace-expansion@<2": "^1.1.21",
+      "brace-expansion@>=4 <6": "^5.0.12",
+      "js-yaml@>=4 <5": "^4.3.2",
+      "browserslist": "^4.28.7",
+      "baseline-browser-mapping": "^2.11.0"
+    }
   }
 }
