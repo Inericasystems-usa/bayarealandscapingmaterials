@@ -68,3 +68,23 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Dependency audit (production packages)
+        run: pnpm audit --prod --audit-level high
+
+      # The public site as visitors get it: the production build just made,
+      # served by next start with no API, checked by e2e/site-quality.spec.ts
+      # (no sideways scroll at 320/390 px, no serious axe violations, one H1
+      # and a description per page, no cookies before consent, no dev-server
+      # leftovers). A failure here blocks the merge like a failing unit test.
+      - name: Install Chromium for the site-quality check
+        run: pnpm --filter @balm/web exec playwright install --with-deps chromium
+
+      - name: Site quality (production build)
+        working-directory: apps/web
+        env:
+          PW_BASE_URL: http://127.0.0.1:3000
+        run: |
+          pnpm start -H 127.0.0.1 > /tmp/web.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:3000/ && break; sleep 1; done
+          pnpm exec playwright test e2e/site-quality.spec.ts --reporter=list
