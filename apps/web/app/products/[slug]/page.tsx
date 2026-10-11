@@ -83,7 +83,17 @@ export default async function ProductPage({ params }: PageProps) {
   });
   const basePrice = prices?.find((p) => p.unit === product.unit) ?? null;
   const priceInfo: PriceInfo | null = basePrice
-    ? { unit: product.unit, unitPlural: product.unitPlural, price: basePrice.price }
+    ? {
+        unit: product.unit,
+        unitPlural: product.unitPlural,
+        price: basePrice.price,
+        fractions: product.variations
+          .filter((v) => v.factor < 1)
+          .flatMap((v) => {
+            const p = prices?.find((x) => x.sku === v.sku);
+            return p ? [{ factor: v.factor, price: p.price }] : [];
+          }),
+      }
     : null;
   const headlinePrice = basePriceLabel(product);
   const core = product.tier === "core";

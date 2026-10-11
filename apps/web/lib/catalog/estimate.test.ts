@@ -69,10 +69,13 @@ describe("estimate", () => {
     expect(r.cost).toBeNull();
   });
 
-  it("sub-yard orders carry the $7 handling fee, 1 yd and up do not", () => {
-    expect(bulkCost(0.5, 72)).toBe(43);
-    expect(bulkCost(1, 72)).toBe(72);
-    expect(bulkCost(2.25, 40)).toBe(90);
+  it("prices whole yards at the yard price and the rest at the half/quarter POS prices", () => {
+    const price = { unit: "Cubic Yard", unitPlural: "cubic yards", price: 52.99, fractions: [{ factor: 0.5, price: 28 }, { factor: 0.25, price: 17.5 }] };
+    expect(bulkCost(0.5, price)).toBe(28);
+    expect(bulkCost(0.75, price)).toBe(45.5);
+    expect(bulkCost(1, price)).toBe(52.99);
+    expect(bulkCost(3.25, price)).toBe(176.47);
+    expect(bulkCost(2, { unit: "Cubic Yard", unitPlural: "cubic yards", price: 40 })).toBe(80);
   });
 
   it("returns nothing for empty or junk input", () => {

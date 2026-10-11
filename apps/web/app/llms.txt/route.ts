@@ -1,5 +1,6 @@
 import { COMPANY } from "@/lib/company";
 import { CATEGORIES, categoryPath, productPath, productsIn, soldByPhrase } from "@/lib/catalog";
+import { basePriceLabel } from "@/lib/catalog/pricing";
 
 const BASE = `https://${COMPANY.domain}`;
 
@@ -12,7 +13,10 @@ export function GET() {
   const hours = COMPANY.hours.map((h) => `${h.label}: ${h.value}`).join(" · ");
   const catalog = CATEGORIES.map((c) => {
     const items = productsIn(c.slug)
-      .map((p) => `  - [${p.name}](${BASE}${productPath(p.slug)}): ${soldByPhrase(p)}`)
+      .map((p) => {
+        const price = basePriceLabel(p);
+        return `  - [${p.name}](${BASE}${productPath(p.slug)}): ${soldByPhrase(p)}${price ? `, ${price}` : ""}`;
+      })
       .join("\n");
     return `### [${c.name}](${BASE}${categoryPath(c.slug)})\n\n${c.intro}\n\n${items}`;
   }).join("\n\n");
@@ -27,7 +31,8 @@ ${COMPANY.legalName} is a landscape-materials supplier in ${COMPANY.address.city
 serving contractors and homeowners across the East Bay and greater San Francisco
 Bay Area. Bulk materials are sold by the cubic yard (with half and quarter yards
 for many), stone by the pound, and hardscape, turf and supplies by the piece,
-pallet or square foot, with pickup or delivery. Prices are quoted on request.
+pallet or square foot, with pickup or delivery. Retail prices are listed on
+every product page (before tax and delivery); delivery is quoted by distance.
 
 - Phone: ${COMPANY.phone}
 - Email: ${COMPANY.email}
@@ -45,6 +50,7 @@ accounts are available.
 ## Key pages
 
 - [Products](${BASE}/products) — the full catalog, with a page for every product
+- [Full catalog for AI assistants](${BASE}/llms-full.txt) — every product with units, prices, coverage and uses
 - [Coverage Calculator](${BASE}/calculator) — how much material you need
 - [Yard Size Guide](${BASE}/yard-size-guide)
 - [Delivery](${BASE}/delivery) — areas, fees, scheduling

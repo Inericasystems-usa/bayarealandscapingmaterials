@@ -81,6 +81,8 @@ export interface PriceInfo {
   unit: string;
   unitPlural: string;
   price: number;
+  /** Fractional units with their own POS price (half yard 0.5, quarter yard 0.25). */
+  fractions?: { factor: number; price: number }[];
 }
 
 // ── Choosing a plan ──────────────────────────────────────────────────────
@@ -260,13 +262,25 @@ const ceilTo = (n: number, step: number) => Math.ceil(n / step - 1e-9) * step;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-/** Sub-yard bulk orders carry the yard's flat $7 handling fee (lib/uom.ts). */
-export const SUB_YARD_HANDLING_FEE = 7;
-
-export function bulkCost(yards: number, pricePerYard: number): number {
+/**
+ * Cost of a bulk order the way the yard rings it up: whole yards at the yard
+ * price, and any remaining half / quarter at those units' own POS prices.
+ * Without fractional prices the remainder is charged pro rata.
+ */
+export function bulkCost(yards: number, price: PriceInfo): number {
   if (yards <= 0) return 0;
-  const base = yards * pricePerYard;
-  return Math.round((yards < 1 ? base + SUB_YARD_HANDLING_FEE : base) * 100) / 100;
+  const whole = Math.floor(yards + 1e-9);
+  let rest = Math.round((yards - whole) * 100) / 100;
+  let total = whole * price.price;
+  const fractions = [...(price.fractions ?? [])].sort((a, b) => b.factor - a.factor);
+  for (const f of fractions) {
+    while (rest + 1e-9 >= f.factor) {
+      total += f.price;
+      rest = Math.round((rest - f.factor) * 100) / 100;
+    }
+  }
+  total += rest * price.price;
+  return Math.round(total * 100) / 100;
 }
 
 export function estimate(plan: CalculatorPlan, input: EstimateInput, price: PriceInfo | null): EstimateResult | null {
@@ -289,7 +303,7 @@ export function estimate(plan: CalculatorPlan, input: EstimateInput, price: Pric
           ...(input.includeExtra ? [`+${plan.extraPct}% ${plan.extraReason}`] : []),
           `About ${fmt(tons)} ${tons === 1 ? "ton" : "tons"}${order < 1 ? " — pickup only (1 yd³ delivery minimum)" : ""}`,
         ],
-        cost: price ? bulkCost(order, price.price) : null,
+        cost: price ? bulkCost(order, price) : null,
       };
     }
     case "weight": {
