@@ -5,8 +5,8 @@ import { PageHero } from "@/components/PageHero";
 import { Section } from "@/components/Section";
 import { CatalogBrowser } from "@/components/catalog/CatalogBrowser";
 import { JsonLd } from "@/components/catalog/JsonLd";
-import { CATEGORIES, PRODUCTS, categoryPath, productsIn, toCard } from "@/lib/catalog";
-import { basePriceLabel } from "@/lib/catalog/pricing";
+import { CATEGORIES, PRODUCTS, categoryPath, productsIn } from "@/lib/catalog";
+import { pricedCard } from "@/lib/catalog/pricing";
 import { breadcrumbJsonLd, collectionJsonLd } from "@/lib/catalog/seo";
 
 const TITLE = "Landscape Supplies & Materials Catalog | Richmond, CA";
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export default function ProductsPage() {
-  const cards = PRODUCTS.map((p) => toCard(p, basePriceLabel(p)));
+  const cards = PRODUCTS.map((p) => pricedCard(p));
   const categories = CATEGORIES.map((c) => ({ slug: c.slug, name: c.name, count: productsIn(c.slug).length }));
 
   return (

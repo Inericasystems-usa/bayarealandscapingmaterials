@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { trackPriceListView } from "@/lib/analytics";
 import { categoryPath, type CatalogCard } from "@/lib/catalog/shared";
 import { ProductCard } from "./ProductCard";
@@ -13,23 +13,53 @@ interface CategoryOption {
   count: number;
 }
 
+type SortKey = "popular" | "name" | "price-asc" | "price-desc";
+
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: "popular", label: "Most popular" },
+  { value: "name", label: "Name, A–Z" },
+  { value: "price-asc", label: "Price, low to high" },
+  { value: "price-desc", label: "Price, high to low" },
+];
+
 /**
- * The full catalog with search and a category filter. Server-rendered with
- * every product visible, so the whole list is in the HTML for crawlers; the
- * filters only narrow it in the browser. `?q=` (from the home page's catalog
- * search) pre-fills the search box.
+ * The full catalog with search, category, in-stock and sort controls.
+ * Server-rendered with every product visible (crawlers see the whole list);
+ * the controls only narrow and reorder it in the browser, and the state is
+ * mirrored into the URL (?q, ?category, ?sort, ?stock) so a filtered view can
+ * be shared or reloaded. On phones the categories are a swipeable chip row
+ * instead of a tall list above the products.
  */
 export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; categories: CategoryOption[] }) {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortKey>("popular");
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const hydrated = useRef(false);
 
+  // Read the URL once, then keep it in step with the controls.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const q = params.get("q");
-    if (q) setSearchQuery(q.slice(0, 80));
-    const category = params.get("category");
-    if (!q && category && categories.some((c) => c.slug === category)) setSelectedCategory(category);
+    if (q) setQuery(q.slice(0, 80));
+    const c = params.get("category");
+    if (c && categories.some((x) => x.slug === c)) setCategory(c);
+    const s = params.get("sort") as SortKey | null;
+    if (s && SORTS.some((x) => x.value === s)) setSort(s);
+    if (params.get("stock") === "1") setInStockOnly(true);
+    hydrated.current = true;
   }, [categories]);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    if (category) params.set("category", category);
+    if (sort !== "popular") params.set("sort", sort);
+    if (inStockOnly) params.set("stock", "1");
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [query, category, sort, inStockOnly]);
 
   // The catalog was viewed. Once per mount: filtering is not a second view.
   const viewed = useRef(false);
@@ -40,113 +70,166 @@ export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; ca
   }, [cards.length]);
 
   const filtered = useMemo(() => {
-    if (searchQuery.trim()) {
-      const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-      return cards.filter((c) => words.every((w) => c.search.includes(w)));
-    }
-    if (selectedCategory) return cards.filter((c) => c.categorySlug === selectedCategory);
-    return cards;
-  }, [cards, selectedCategory, searchQuery]);
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const list = cards.filter(
+      (c) =>
+        (!category || c.categorySlug === category) &&
+        (!inStockOnly || c.isService || c.stockStatus === "instock") &&
+        words.every((w) => c.search.includes(w)),
+    );
+    const byPrice = (dir: 1 | -1) => (a: CatalogCard, b: CatalogCard) =>
+      a.price === null ? 1 : b.price === null ? -1 : (a.price - b.price) * dir;
+    if (sort === "name") return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "price-asc") return [...list].sort(byPrice(1));
+    if (sort === "price-desc") return [...list].sort(byPrice(-1));
+    return list; // server order is already by demand rank
+  }, [cards, category, query, sort, inStockOnly]);
 
-  const selected = categories.find((c) => c.slug === selectedCategory);
+  const selected = categories.find((c) => c.slug === category);
+  const filtering = Boolean(query.trim() || category || inStockOnly);
+  const clearAll = () => {
+    setQuery("");
+    setCategory(null);
+    setInStockOnly(false);
+  };
+
+  const chip = (active: boolean) =>
+    `whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+      active
+        ? "border-[var(--color-action)] bg-[var(--color-action)] text-[var(--color-action-fg)] shadow-[var(--shadow-sm)]"
+        : "border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:border-[var(--color-moss-400)] hover:text-[var(--color-text-primary)]"
+    }`;
 
   return (
-    <div className="grid grid-cols-1 gap-10 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 lg:gap-10">
+      {/* ── Controls ── */}
       <div className="lg:col-span-1">
-        <div className="lg:sticky lg:top-24">
-          <div className="mb-8" role="search">
+        <div className="space-y-6 lg:sticky lg:top-28">
+          <div role="search">
             <label htmlFor="product-search" className="sr-only">
               Search products
             </label>
             <div className="relative">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--color-text-muted)]"
+                className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--color-text-muted)]"
                 strokeWidth={1.5}
                 aria-hidden
               />
               <input
                 id="product-search"
                 type="search"
-                placeholder="Search products..."
-                value={searchQuery}
+                placeholder="Search bark, rock, pavers…"
+                value={query}
                 maxLength={80}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setSelectedCategory(null);
-                }}
-                className="w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] py-2.5 pl-10 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-[var(--color-border-focus)] focus-visible:outline-offset-2"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-12 w-full rounded-full border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] pl-11 pr-4 text-base text-[var(--color-text-primary)] shadow-[var(--shadow-sm)] transition-colors placeholder:text-[var(--color-text-muted)] hover:border-[var(--color-moss-400)] focus-visible:border-[var(--color-border-focus)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]"
               />
             </div>
           </div>
 
-          <h2 className="mb-4 font-display text-lg font-semibold text-[var(--color-text-primary)]">Categories</h2>
-          <div className="max-h-[60vh] space-y-1.5 overflow-y-auto pr-1 lg:max-h-[calc(100vh-14rem)]">
-            <button
-              type="button"
-              aria-pressed={selectedCategory === null && !searchQuery}
-              onClick={() => {
-                setSelectedCategory(null);
-                setSearchQuery("");
-              }}
-              className={`w-full rounded-[var(--radius-md)] px-4 py-2.5 text-left text-sm font-medium transition-colors ${
-                selectedCategory === null && !searchQuery
-                  ? "bg-[var(--color-action)] text-[var(--color-action-fg)]"
-                  : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-brand)]"
-              }`}
-            >
-              All Products <span>({cards.length})</span>
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.slug}
-                type="button"
-                aria-pressed={selectedCategory === category.slug}
-                onClick={() => {
-                  setSelectedCategory(category.slug);
-                  setSearchQuery("");
-                }}
-                className={`w-full rounded-[var(--radius-md)] px-4 py-2.5 text-left text-sm font-medium transition-colors ${
-                  selectedCategory === category.slug
-                    ? "bg-[var(--color-action)] text-[var(--color-action-fg)]"
-                    : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-brand)]"
-                }`}
-              >
-                {category.name} <span>({category.count})</span>
-              </button>
-            ))}
+          <div>
+            <h2 className="mb-3 font-display text-base font-semibold text-[var(--color-text-primary)]">Categories</h2>
+            {/* Phones: one swipeable row. Desktop: a list. */}
+            <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-1 lg:overflow-visible lg:px-0">
+              <li className="snap-start">
+                <button type="button" aria-pressed={!category} onClick={() => setCategory(null)} className={`${chip(!category)} lg:w-full lg:rounded-[var(--radius-md)] lg:text-left`}>
+                  All <span className="opacity-70">({cards.length})</span>
+                </button>
+              </li>
+              {categories.map((c) => (
+                <li key={c.slug} className="snap-start">
+                  <button
+                    type="button"
+                    aria-pressed={category === c.slug}
+                    onClick={() => setCategory(category === c.slug ? null : c.slug)}
+                    className={`${chip(category === c.slug)} lg:flex lg:w-full lg:justify-between lg:rounded-[var(--radius-md)] lg:border-transparent lg:text-left`}
+                  >
+                    {c.name} <span className="opacity-70">({c.count})</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
+
+          <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-[var(--color-text-secondary)]">
+            <input
+              type="checkbox"
+              checked={inStockOnly}
+              onChange={(e) => setInStockOnly(e.target.checked)}
+              className="h-5 w-5 accent-[var(--color-action)]"
+            />
+            In stock only
+          </label>
         </div>
       </div>
 
+      {/* ── Results ── */}
       <div className="lg:col-span-3">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
           <p className="text-[var(--color-text-secondary)]" aria-live="polite">
-            Showing {filtered.length} product{filtered.length !== 1 ? "s" : ""}
-            {selected ? (
-              <span className="font-semibold text-[var(--color-text-primary)]"> in {selected.name}</span>
-            ) : null}
+            <span className="font-semibold text-[var(--color-text-primary)]">{filtered.length}</span> product
+            {filtered.length !== 1 ? "s" : ""}
+            {selected ? <> in {selected.name}</> : null}
+            {query.trim() ? <> matching “{query.trim()}”</> : null}
           </p>
-          {selected ? (
-            <Link
-              href={categoryPath(selected.slug)}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-brand)] hover:text-[var(--color-action-hover)]"
-            >
-              Open the {selected.name} page
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {filtering ? (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium text-[var(--color-text-brand)] transition-colors hover:bg-[var(--color-moss-50)]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+                Clear filters
+              </button>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden />
+              <span className="sr-only sm:not-sr-only">Sort</span>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                className="h-10 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-bg-elevated)] px-3 text-sm text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-border-focus)]"
+              >
+                {SORTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
+        {selected ? (
+          <Link
+            href={categoryPath(selected.slug)}
+            className="group mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text-brand)] hover:text-[var(--color-action-hover)]"
+          >
+            About {selected.name}: guide, coverage and uses
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        ) : null}
+
         {filtered.length === 0 ? (
-          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] py-16 text-center">
-            <p className="text-lg text-[var(--color-text-secondary)]">
-              No products found. Try adjusting your search or filters.
+          <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] px-6 py-16 text-center">
+            <p className="text-lg font-medium text-[var(--color-text-primary)]">No products match.</p>
+            <p className="mt-2 text-[var(--color-text-secondary)]">
+              Try a shorter search, or{" "}
+              <button type="button" onClick={clearAll} className="font-semibold text-[var(--color-text-brand)] underline">
+                show everything
+              </button>
+              . We stock more than is listed — call the yard if you don&apos;t see it.
             </p>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-x-5 gap-y-10 xl:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-5 xl:grid-cols-3">
             {filtered.map((card) => (
-              <li key={card.slug}>
+              <li key={card.slug} className="[contain-intrinsic-size:auto_440px] [content-visibility:auto]">
                 <ProductCard card={card} />
               </li>
             ))}

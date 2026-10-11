@@ -51,6 +51,8 @@ export interface CatalogCard {
   search: string;
   /** Formatted base price, only when the storefront switch shows prices. */
   priceLabel: string | null;
+  /** The same base price as a number, for sorting; null when not shown. */
+  price: number | null;
 }
 
 /** /request-quote with the product, unit and quantity filled in. */

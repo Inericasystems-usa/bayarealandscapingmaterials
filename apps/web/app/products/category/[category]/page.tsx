@@ -8,8 +8,8 @@ import { Section } from "@/components/Section";
 import { Breadcrumbs } from "@/components/catalog/Breadcrumbs";
 import { CategoryGrid } from "@/components/catalog/CategoryGrid";
 import { JsonLd } from "@/components/catalog/JsonLd";
-import { CATEGORIES, categoryPath, getCategory, productsIn, toCard } from "@/lib/catalog";
-import { basePriceLabel } from "@/lib/catalog/pricing";
+import { CATEGORIES, categoryPath, getCategory, productsIn } from "@/lib/catalog";
+import { pricedCard } from "@/lib/catalog/pricing";
 import { breadcrumbJsonLd, categoryDescription, categoryMetadata, collectionJsonLd, type Crumb } from "@/lib/catalog/seo";
 
 // One static page per category; any other slug is a real 404.
@@ -33,7 +33,7 @@ export default async function CategoryPage({ params }: PageProps) {
   if (!category) notFound();
 
   const products = productsIn(category.slug);
-  const cards = products.map((p) => toCard(p, basePriceLabel(p)));
+  const cards = products.map((p) => pricedCard(p));
   const crumbs: Crumb[] = [
     { name: "Home", path: "/" },
     { name: "Products", path: "/products" },

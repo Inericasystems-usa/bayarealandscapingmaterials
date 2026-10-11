@@ -61,8 +61,13 @@ export function ProductGallery({ images, name }: { images: DisplayImage[]; name:
           priority={index === 0}
           fetchPriority={index === 0 ? "high" : "auto"}
           sizes="(min-width: 1280px) 600px, (min-width: 1024px) 45vw, 90vw"
-          className="object-contain"
+          className={`${current.kind ? "object-cover" : "object-contain"} transition-transform duration-700 ease-out motion-safe:group-hover:scale-[1.04]`}
         />
+        {current.kind === "in-use" ? (
+          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+            Example of use
+          </span>
+        ) : null}
         <span
           aria-hidden
           className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[var(--color-moss-950)] shadow-[var(--shadow-sm)] transition-transform group-hover:scale-110"
@@ -80,11 +85,13 @@ export function ProductGallery({ images, name }: { images: DisplayImage[]; name:
                 onClick={() => setIndex(i)}
                 aria-label={`Show photo ${i + 1} of ${images.length}`}
                 aria-current={i === index ? "true" : undefined}
-                className={`relative block h-20 w-20 overflow-hidden rounded-[var(--radius-md)] border-2 ${
-                  i === index ? "border-[var(--color-action)]" : "border-transparent"
+                className={`group/thumb relative block h-20 w-20 overflow-hidden rounded-[var(--radius-md)] border-2 transition-all duration-200 ${
+                  i === index
+                    ? "border-[var(--color-action)] shadow-[var(--shadow-md)]"
+                    : "border-transparent opacity-75 hover:-translate-y-0.5 hover:opacity-100"
                 }`}
               >
-                <Image src={img.src} alt="" fill sizes="80px" className="object-cover" />
+                <Image src={img.src} alt="" fill sizes="80px" className="object-cover transition-transform duration-500 group-hover/thumb:scale-110" />
               </button>
             </li>
           ))}

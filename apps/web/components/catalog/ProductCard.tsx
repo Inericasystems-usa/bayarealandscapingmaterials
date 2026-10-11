@@ -33,19 +33,36 @@ export function ProductCard({ card, headingLevel = 3 }: { card: CatalogCard; hea
   return (
     <Link
       href={productPath(card.slug)}
-      className="group flex h-full flex-col rounded-[var(--radius-xl)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-border-focus)]"
+      className="product-card group flex h-full flex-col rounded-[var(--radius-xl)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-border-focus)]"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-white">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-white transition-shadow duration-300 group-hover:shadow-[var(--shadow-xl)]">
         <Image
           src={card.image.src}
           alt={card.image.isPlaceholder ? "" : card.image.alt}
           fill
           unoptimized={card.image.isPlaceholder}
           sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
-          // Whole product in frame: tool photos are shot on white and would be
-          // cropped by a cover fit. The generic placeholder fills its tile.
-          className={`${card.image.isPlaceholder ? "object-cover" : "object-contain"} transition-transform duration-[900ms] ease-out group-hover:scale-105`}
+          // Renders and the generic placeholder fill the tile; tool photos shot
+          // on white keep the whole product in frame.
+          className={`${card.image.isPlaceholder || card.image.kind ? "object-cover" : "object-contain"} transition-transform duration-[900ms] ease-out group-hover:scale-105`}
         />
+        {card.hoverImage ? (
+          // The in-use scene (or second photo) fades in on hover; lazy, so it
+          // costs nothing until a pointer reaches the card.
+          <Image
+            src={card.hoverImage.src}
+            alt=""
+            fill
+            loading="lazy"
+            sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
+            className="object-cover opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
+        ) : null}
+        {card.core ? (
+          <span className="absolute right-3 top-3 rounded-full bg-[var(--color-moss-900)]/85 px-2.5 py-0.5 text-[0.68rem] font-semibold text-white backdrop-blur-sm">
+            Core material
+          </span>
+        ) : null}
         {card.image.isPlaceholder ? (
           <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[0.68rem] font-semibold text-[var(--color-moss-900)]">
             Photo coming soon

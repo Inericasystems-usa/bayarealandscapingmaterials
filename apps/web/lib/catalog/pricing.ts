@@ -1,5 +1,7 @@
 import { SHOW_PRICES } from "@/lib/storefront";
 import { RETAIL_PRICES } from "./prices.generated";
+import { toCard } from "./index";
+import type { CatalogCard } from "./shared";
 import type { CatalogProduct } from "./types";
 
 /**
@@ -44,4 +46,11 @@ export function basePriceLabel(product: CatalogProduct, showPrices: boolean = SH
   const prices = variationPrices(product, showPrices);
   const base = prices?.find((p) => p.unit === product.unit) ?? prices?.[0];
   return base ? unitPriceLabel(base.price, base.unit) : null;
+}
+
+/** A grid card with its base price (label and number) when prices are shown. */
+export function pricedCard(product: CatalogProduct, showPrices: boolean = SHOW_PRICES): CatalogCard {
+  const prices = variationPrices(product, showPrices);
+  const base = prices?.find((p) => p.unit === product.unit) ?? prices?.[0];
+  return toCard(product, base ? unitPriceLabel(base.price, base.unit) : null, base?.price ?? null);
 }

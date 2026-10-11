@@ -115,3 +115,30 @@ body {
     box-shadow: 0 20px 40px rgb(14 36 27 / 0.14);
   }
 }
+
+/* Calculator result: a short settle-in whenever the figure changes. */
+@media (prefers-reduced-motion: no-preference) {
+  .calc-pop {
+    animation: calc-pop 0.35s var(--ease-emphasized, ease-out) both;
+  }
+}
+@keyframes calc-pop {
+  from {
+    opacity: 0.2;
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* In-page links (#calculator) land below the sticky header. */
+html {
+  scroll-padding-top: 6rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

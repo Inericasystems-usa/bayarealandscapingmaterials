@@ -127,7 +127,11 @@ export function searchText(product: CatalogProduct): string {
     .toLowerCase();
 }
 
-export function toCard(product: CatalogProduct, priceLabel: string | null = null): CatalogCard {
+export function toCard(
+  product: CatalogProduct,
+  priceLabel: string | null = null,
+  price: number | null = null,
+): CatalogCard {
   const category = categoryOf(product);
   const images = displayImages(product);
   const hover = images.find((i) => i.kind === "in-use") ?? images[1] ?? null;
@@ -147,5 +151,6 @@ export function toCard(product: CatalogProduct, priceLabel: string | null = null
     isService: product.isService,
     search: searchText(product),
     priceLabel,
+    price: priceLabel ? price : null,
   };
 }
