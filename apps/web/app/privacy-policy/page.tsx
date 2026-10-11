@@ -154,7 +154,7 @@ export default function PrivacyPolicyPage() {
                   <br />
                   Phone: <a className="text-[var(--color-text-brand)] hover:underline" href={`tel:${COMPANY.phoneE164}`} data-call-location="unknown">{COMPANY.phone}</a>
                   <br />
-                  Email: <a className="text-[var(--color-text-brand)] hover:underline" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
+                  Email: <a className="break-all text-[var(--color-text-brand)] hover:underline" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
                 </p>
                 <p className="mt-3 text-sm text-[var(--color-text-muted)]">
                   See also our{" "}

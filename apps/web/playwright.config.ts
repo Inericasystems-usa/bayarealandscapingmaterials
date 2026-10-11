@@ -5,6 +5,10 @@ import { defineConfig, devices } from "@playwright/test";
  * Run: `npx playwright install chromium` once, then `pnpm --filter @balm/web test:e2e`.
  * Kept out of the unit `pnpm test` (CI runs unit/integration; E2E is a separate job).
  */
+// PW_BASE_URL set: test an already-running site (a production build in CI's
+// site-quality job, or a deployed host) with no API or dev servers booted.
+const external = process.env.PW_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   // Generous per-test budget: the first /pos navigation pays Next's cold
@@ -15,11 +19,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: external ?? "http://localhost:3000",
     trace: "on-first-retry",
+    // Use a preinstalled Chromium when the bundled one is not downloaded.
+    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: [
+  webServer: external ? undefined : [
     {
       command: "pnpm --filter @balm/api dev",
       url: "http://localhost:4000/health",

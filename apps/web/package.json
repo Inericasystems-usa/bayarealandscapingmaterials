@@ -31,6 +31,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@balm/config-typescript": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/container-queries": "^0.1.1",

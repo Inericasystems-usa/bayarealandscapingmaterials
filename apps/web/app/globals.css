@@ -73,3 +73,45 @@ html[data-consent-answered] .consent-banner--pending {
   mix-blend-mode: screen;
   opacity: 0.20;
 }
+
+/* Clip, never scroll, sideways: a decorative element or a long word can
+   no longer make a phone page pan left-right. `clip` (unlike `hidden`)
+   does not create a scroll container, so position: sticky keeps working. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* Scroll-reveal (components/AnimatedSection.tsx). Visible by default; the
+   fade-and-rise runs only where scroll-driven animations exist and motion
+   is welcome. Content already on screen at load sits at the end of its
+   range, so it is never hidden while the page paints. */
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+  .hover-lift {
+    transition:
+      translate 0.25s ease-out,
+      box-shadow 0.25s ease-out;
+  }
+  .hover-lift:hover,
+  .hover-lift:focus-within {
+    translate: 0 -6px;
+    box-shadow: 0 20px 40px rgb(14 36 27 / 0.14);
+  }
+}

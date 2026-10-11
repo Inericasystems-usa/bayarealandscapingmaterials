@@ -1,153 +1,70 @@
-"use client";
+import type { CSSProperties, ReactNode } from "react";
 
-import { useRef } from "react";
-import type { ReactNode } from "react";
-import { motion, useInView } from "framer-motion";
+/**
+ * Entrance effects, CSS only (no client JavaScript).
+ *
+ * Content is ALWAYS visible by default. The reveal is a progressive
+ * enhancement in globals.css: where the browser supports scroll-driven
+ * animations (`animation-timeline: view()`) and the visitor has not asked
+ * for reduced motion, a block fades and rises a few pixels as it scrolls
+ * into view. Anything already on screen at load is at the end of its
+ * range, so nothing above the fold waits on an animation (this used to
+ * hold product grids and hero text at opacity 0 until framer-motion
+ * hydrated, which was most of the mobile LCP render delay).
+ *
+ * Motion is vertical only: the old horizontal slide-ins started 40–60 px
+ * off to the side and made /request-quote and /contact scroll sideways
+ * on phones.
+ *
+ * The component names and props are kept so existing pages need no edits;
+ * `direction` and `delay` are accepted and ignored except for a small
+ * per-item stagger.
+ */
 
-const EASE = [0.25, 0.46, 0.45, 0.94] as const;
-
-export function FadeIn({
-  children,
-  delay = 0,
-  className = "",
-  direction = "up",
-}: {
+type RevealProps = {
   children: ReactNode;
-  delay?: number;
   className?: string;
+  delay?: number;
   direction?: "up" | "down" | "left" | "right";
-}) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  const dir = {
-    up: { y: 40, x: 0 },
-    down: { y: -40, x: 0 },
-    left: { y: 0, x: 40 },
-    right: { y: 0, x: -40 },
-  }[direction];
+};
 
+function Reveal({ children, className = "", delay = 0 }: RevealProps) {
+  const style = delay ? ({ "--reveal-delay": `${Math.min(delay, 0.4)}s` } as CSSProperties) : undefined;
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, ...dir }}
-      animate={inView ? { opacity: 1, y: 0, x: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease: EASE }}
-      className={className}
-    >
+    <div className={`reveal ${className}`.trim()} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
+}
+
+export function FadeIn(props: RevealProps) {
+  return <Reveal {...props} />;
+}
+
+export function SlideIn(props: RevealProps) {
+  return <Reveal {...props} />;
 }
 
 export function StaggerContainer({
   children,
   className = "",
-  staggerDelay = 0.1,
 }: {
   children: ReactNode;
   className?: string;
   staggerDelay?: number;
 }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial="hidden"
-      animate={inView ? "visible" : "hidden"}
-      variants={{ hidden: {}, visible: { transition: { staggerChildren: staggerDelay } } }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
-export function StaggerItem({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 30 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+export function StaggerItem({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <Reveal className={className}>{children}</Reveal>;
 }
 
-export function SlideIn({
-  children,
-  direction = "left",
-  delay = 0,
-  className = "",
-}: {
-  children: ReactNode;
-  direction?: "left" | "right";
-  delay?: number;
-  className?: string;
-}) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: direction === "left" ? -60 : 60 }}
-      animate={inView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: EASE }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+/** Lift on hover/focus-within; disabled for reduced motion in globals.css. */
+export function HoverCard({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`hover-lift ${className}`.trim()}>{children}</div>;
 }
 
-export function HoverCard({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      whileHover={{ y: -8, boxShadow: "0 20px 40px rgba(14,36,27,0.14)" }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-export function AnimatedCounter({
-  value,
-  className = "",
-}: {
-  value: string;
-  className?: string;
-}) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
-
-  return (
-    <motion.span
-      ref={ref}
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={inView ? { opacity: 1, scale: 1 } : {}}
-      transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
-      className={className}
-    >
-      {value}
-    </motion.span>
-  );
+export function AnimatedCounter({ value, className = "" }: { value: string; className?: string }) {
+  return <span className={className}>{value}</span>;
 }

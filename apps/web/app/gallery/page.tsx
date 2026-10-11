@@ -193,7 +193,7 @@ export default function GalleryPage() {
           </AnimatePresence>
 
           <FadeIn className="mt-14 text-center">
-            <div className="inline-block max-w-xl rounded-[var(--radius-xl)] bg-gradient-to-br from-[var(--color-moss-900)] to-[var(--color-moss-950)] px-10 py-8">
+            <div className="inline-block max-w-xl rounded-[var(--radius-xl)] px-6 sm:px-10 bg-gradient-to-br from-[var(--color-moss-900)] to-[var(--color-moss-950)] py-8">
               <h3 className="mb-2 font-display text-2xl font-light text-white">Ready to Transform Your Space?</h3>
               <p className="mb-6 text-sm text-[var(--color-moss-200)]">
                 Get a free quote for your project — we deliver throughout the Bay Area.

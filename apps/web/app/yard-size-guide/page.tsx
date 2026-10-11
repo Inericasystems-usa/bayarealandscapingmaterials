@@ -281,7 +281,7 @@ export default function YardSizeGuidePage() {
                   Our team will help you estimate the right amount for your project.
                 </p>
               </div>
-              <div className="flex flex-shrink-0 gap-3">
+              <div className="flex flex-shrink-0 flex-wrap gap-3">
                 <Link href="/calculator">
                   <Button variant="secondary" size="lg" className="border-white/30 bg-transparent text-white hover:bg-white/10">
                     Calculator
