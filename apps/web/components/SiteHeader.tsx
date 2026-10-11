@@ -69,7 +69,7 @@ export function SiteHeader() {
               key={item.href}
               href={item.href}
               aria-current={isCurrent(item.href) ? "page" : undefined}
-              className="group relative px-3 py-2 text-[0.82rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] aria-[current=page]:text-[var(--color-text-brand)]"
+              className="group relative whitespace-nowrap px-2.5 py-2 text-[0.82rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] aria-[current=page]:text-[var(--color-text-brand)]"
             >
               {item.label}
               <span className="absolute inset-x-3 bottom-1 h-px origin-left scale-x-0 bg-[var(--color-text-brand)] transition-transform duration-300 group-hover:scale-x-100 group-aria-[current=page]:scale-x-100" aria-hidden />
@@ -86,7 +86,7 @@ export function SiteHeader() {
             aria-label={`Call ${COMPANY.phone}`}
           >
             <Phone className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-            <span>{COMPANY.phone}</span>
+            <span className="whitespace-nowrap">{COMPANY.phone}</span>
           </a>
 
           {/* The link itself is the button (a <button> inside <a> is invalid, and

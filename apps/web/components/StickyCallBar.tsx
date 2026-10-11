@@ -55,18 +55,18 @@ export function StickyCallBar() {
         )}
       </p>
 
-      <div className="flex items-stretch gap-2 p-2">
+      <div className="grid grid-cols-[1.35fr_1fr] items-stretch gap-2 p-2">
         <a
           href={`tel:${COMPANY.phoneE164}`}
           data-call-location="sticky_bar"
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-action)] px-4 py-3 text-sm font-semibold text-[var(--color-action-fg)]"
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-action)] whitespace-nowrap px-3 py-3 text-sm font-semibold text-[var(--color-action-fg)]"
         >
           <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
-          Call {COMPANY.phone}
+          Call<span className="hidden min-[360px]:inline"> {COMPANY.phone}</span>
         </a>
         <Link
           href="/request-quote"
-          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
+          className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] whitespace-nowrap px-3 py-3 text-sm font-semibold text-[var(--color-text-primary)]"
         >
           <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
           Get a quote
