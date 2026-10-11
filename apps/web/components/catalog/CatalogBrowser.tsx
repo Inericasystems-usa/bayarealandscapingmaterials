@@ -137,7 +137,7 @@ export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; ca
             <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-1 lg:overflow-visible lg:px-0">
               <li className="snap-start">
                 <button type="button" aria-pressed={!category} onClick={() => setCategory(null)} className={`${chip(!category)} lg:w-full lg:rounded-[var(--radius-md)] lg:text-left`}>
-                  All <span className="opacity-80">({cards.length})</span>
+                  All <span>({cards.length})</span>
                 </button>
               </li>
               {categories.map((c) => (
@@ -148,7 +148,7 @@ export function CatalogBrowser({ cards, categories }: { cards: CatalogCard[]; ca
                     onClick={() => setCategory(category === c.slug ? null : c.slug)}
                     className={`${chip(category === c.slug)} lg:flex lg:w-full lg:justify-between lg:rounded-[var(--radius-md)] lg:border-transparent lg:text-left`}
                   >
-                    {c.name} <span className="opacity-80">({c.count})</span>
+                    {c.name} <span>({c.count})</span>
                   </button>
                 </li>
               ))}

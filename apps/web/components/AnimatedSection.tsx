@@ -6,8 +6,9 @@ import type { CSSProperties, ReactNode } from "react";
  * Content is ALWAYS visible by default. The reveal is a progressive
  * enhancement in globals.css: where the browser supports scroll-driven
  * animations (`animation-timeline: view()`) and the visitor has not asked
- * for reduced motion, a block fades and rises a few pixels as it scrolls
- * into view. Anything already on screen at load is at the end of its
+ * for reduced motion, a block rises a few pixels as it scrolls into view
+ * (movement only: a scroll-linked fade would leave text at the screen's
+ * bottom edge below contrast minimums). Anything already on screen at load is at the end of its
  * range, so nothing above the fold waits on an animation (this used to
  * hold product grids and hero text at opacity 0 until framer-motion
  * hydrated, which was most of the mobile LCP render delay).

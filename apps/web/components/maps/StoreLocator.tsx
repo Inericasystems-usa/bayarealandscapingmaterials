@@ -124,9 +124,9 @@ export function StoreLocator() {
   const selected = ranked.find((r) => r.location.id === selectedId) ?? nearest;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-5">
       {/* Panel — first on mobile, left column on desktop */}
-      <div className="space-y-6 lg:col-span-2">
+      <div className="min-w-0 space-y-6 lg:col-span-2">
         <div>
           <h3 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
             Search your location

@@ -116,9 +116,9 @@ export default function TermsOfServicePage() {
                   <br />
                   {COMPANY.address.street}, {COMPANY.address.city}, {COMPANY.address.state} {COMPANY.address.postalCode}
                   <br />
-                  Phone: <a className="text-[var(--color-text-brand)] hover:underline" href={`tel:${COMPANY.phoneE164}`} data-call-location="unknown">{COMPANY.phone}</a>
+                  Phone: <a className="text-[var(--color-text-brand)] underline underline-offset-2" href={`tel:${COMPANY.phoneE164}`} data-call-location="unknown">{COMPANY.phone}</a>
                   <br />
-                  Email: <a className="text-[var(--color-text-brand)] hover:underline" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
+                  Email: <a className="break-all text-[var(--color-text-brand)] underline underline-offset-2" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
                 </p>
               </Block>
             </div>

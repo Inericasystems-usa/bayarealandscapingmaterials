@@ -2,7 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * Public-site quality gate. Runs against a production build with no API
+ * Public-site quality gate. (Pages are checked at "load" plus a short settle,
+ * not "networkidle": blocked third-party hosts would otherwise stall it.)
+ * Runs against a production build with no API
  * (CI job "site-quality": next build && next start, PW_BASE_URL set), so it
  * checks what visitors actually get:
  *
@@ -67,7 +69,8 @@ for (const path of PAGES) {
     for (const width of PHONES) {
       test(`fits a ${width}px phone`, async ({ page }) => {
         await page.setViewportSize({ width, height: 800 });
-        await page.goto(path, { waitUntil: "networkidle" });
+        await page.goto(path, { waitUntil: "load" });
+        await page.waitForTimeout(400);
         await scrollThrough(page);
         expect(await sidewaysOverflow(page)).toEqual([]);
         const { scroll, client } = await page.evaluate(() => ({
@@ -84,7 +87,8 @@ for (const path of PAGES) {
     ] as const) {
       test(`no serious accessibility violations (${name})`, async ({ page }) => {
         await page.setViewportSize(size);
-        await page.goto(path, { waitUntil: "networkidle" });
+        await page.goto(path, { waitUntil: "load" });
+        await page.waitForTimeout(400);
         const { violations } = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
           .analyze();
@@ -106,7 +110,8 @@ for (const path of PAGES) {
 }
 
 test("no tracking before the visitor answers the cookie banner", async ({ page, context }) => {
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/", { waitUntil: "load" });
+  await page.waitForTimeout(800);
   expect(await context.cookies()).toEqual([]);
   const consent = await page.evaluate(() =>
     ((window as unknown as { dataLayer?: unknown[][] }).dataLayer ?? []).find(

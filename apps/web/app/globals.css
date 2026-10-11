@@ -86,14 +86,17 @@ body {
    fade-and-rise runs only where scroll-driven animations exist and motion
    is welcome. Content already on screen at load sits at the end of its
    range, so it is never hidden while the page paints. */
+/* Movement only, no fade: a scroll-linked fade leaves whatever sits at the
+   bottom edge of the screen half-transparent (and below text contrast) for
+   as long as the visitor stops scrolling there. */
 @keyframes reveal-rise {
   from {
-    opacity: 0;
-    translate: 0 24px;
+    translate: 0 28px;
+    scale: 0.985;
   }
   to {
-    opacity: 1;
     translate: 0 0;
+    scale: 1;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -101,7 +104,7 @@ body {
     .reveal {
       animation: reveal-rise linear both;
       animation-timeline: view();
-      animation-range: entry 0% entry 55%;
+      animation-range: entry 0% entry 60%;
     }
   }
   .hover-lift {

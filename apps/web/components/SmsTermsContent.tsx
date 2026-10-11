@@ -17,7 +17,7 @@ function Part({ part }: { part: TermPart }) {
   return (
     <Link
       href={part.link.href as Route}
-      className="text-[var(--color-text-brand)] hover:underline"
+      className="text-[var(--color-text-brand)] underline underline-offset-2"
     >
       {part.link.label}
     </Link>

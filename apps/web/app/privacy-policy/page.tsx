@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage() {
                   in your browser&rsquo;s local storage for up to 90 days and include it with a quote or contact
                   request. Your answer is stored in your browser, not in a cookie. If your browser sends Global
                   Privacy Control, advertising stays off. You can change your choice at any time:{" "}
-                  <CookieSettingsButton className="cursor-pointer text-[var(--color-text-brand)] hover:underline" />.
+                  <CookieSettingsButton className="cursor-pointer text-[var(--color-text-brand)] underline underline-offset-2" />.
                 </p>
               </Block>
 
@@ -152,13 +152,13 @@ export default function PrivacyPolicyPage() {
                   <br />
                   {COMPANY.address.street}, {COMPANY.address.city}, {COMPANY.address.state} {COMPANY.address.postalCode}
                   <br />
-                  Phone: <a className="text-[var(--color-text-brand)] hover:underline" href={`tel:${COMPANY.phoneE164}`} data-call-location="unknown">{COMPANY.phone}</a>
+                  Phone: <a className="text-[var(--color-text-brand)] underline underline-offset-2" href={`tel:${COMPANY.phoneE164}`} data-call-location="unknown">{COMPANY.phone}</a>
                   <br />
-                  Email: <a className="break-all text-[var(--color-text-brand)] hover:underline" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
+                  Email: <a className="break-all text-[var(--color-text-brand)] underline underline-offset-2" href={`mailto:${COMPANY.email}`} data-email-location="unknown">{COMPANY.email}</a>
                 </p>
                 <p className="mt-3 text-sm text-[var(--color-text-muted)]">
                   See also our{" "}
-                  <Link href="/terms-of-service" className="text-[var(--color-text-brand)] hover:underline">
+                  <Link href="/terms-of-service" className="text-[var(--color-text-brand)] underline underline-offset-2">
                     Terms of Service
                   </Link>
                   .

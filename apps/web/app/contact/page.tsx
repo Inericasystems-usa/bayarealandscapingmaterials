@@ -104,9 +104,9 @@ export default function ContactPage() {
                   >
                     <Icon className="h-7 w-7" strokeWidth={1.5} />
                   </span>
-                  <h3 className="font-display font-semibold text-[var(--color-text-primary)]">
+                  <h2 className="font-display font-semibold text-[var(--color-text-primary)]">
                     {title}
-                  </h3>
+                  </h2>
                   {href ? (
                     <TrackedLink
                       conversion={conversion}
