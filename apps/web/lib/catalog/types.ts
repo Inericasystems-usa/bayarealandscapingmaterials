@@ -21,6 +21,8 @@ export interface CatalogImage {
   height: number;
   bytes: number;
   alt: string;
+  /** "studio" render, "in-use" example scene, or (absent) a photo from the yard. */
+  kind?: "studio" | "in-use";
 }
 
 export interface CatalogVariation {
@@ -63,6 +65,14 @@ export interface CatalogProduct {
   keywords: string[];
   /** Last change in the POS, YYYY-MM-DD. */
   updatedAt: string;
+  /**
+   * Bay Area demand rank from the POS asset manifest (1 = most in demand), a
+   * market proxy rather than recorded sales. Orders the catalog; absent for
+   * products the manifest does not rank.
+   */
+  rank?: number;
+  /** "core" marks the everyday materials the yard is known for. */
+  tier?: "core" | "standard" | "select";
 }
 
 export interface CatalogCategory {

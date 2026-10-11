@@ -1,6 +1,7 @@
-import { CATEGORIES, PRODUCTS } from "./catalog.generated";
+import { CATEGORIES, PRODUCTS as BASE_PRODUCTS } from "./catalog.generated";
+import { MERCH, RENDERS } from "./merch.generated";
 import { type CatalogCard, type DisplayImage } from "./shared";
-import type { CatalogCategory, CatalogProduct } from "./types";
+import type { CatalogCategory, CatalogImage, CatalogProduct } from "./types";
 
 /**
  * The public product catalog: the products published to the storefront in the
@@ -10,6 +11,32 @@ import type { CatalogCategory, CatalogProduct } from "./types";
  *
  * Carries no prices (see pricing.ts and lib/storefront.ts).
  */
+
+/**
+ * The generated products, enriched with the asset pack (scripts/
+ * import-catalog-assets.mjs): demand rank and tier, and studio / in-use
+ * renders. A studio render leads the gallery (it matches the clean catalog
+ * look), the yard's own photo follows, and the in-use scene comes last.
+ */
+function enrich(p: CatalogProduct): CatalogProduct {
+  const m = MERCH[p.slug];
+  const r = RENDERS[p.slug];
+  if (!m && !r) return p;
+  const images: CatalogImage[] = [
+    ...(r?.studio ? [{ ...r.studio, alt: `${p.name}, close-up of the material`, kind: "studio" as const }] : []),
+    ...p.images,
+    ...(r?.["in-use"]
+      ? [{ ...r["in-use"], alt: `Example of ${p.name} used in a finished landscape`, kind: "in-use" as const }]
+      : []),
+  ];
+  return { ...p, images, ...(m ? { rank: m.rank, tier: m.tier } : {}) };
+}
+
+/** Catalog order: ranked products by demand, then the rest as generated. */
+const PRODUCTS: readonly CatalogProduct[] = BASE_PRODUCTS.map(enrich)
+  .map((p, i) => ({ p, i }))
+  .sort((a, b) => (a.p.rank ?? 1e6) - (b.p.rank ?? 1e6) || a.i - b.i)
+  .map(({ p }) => p);
 
 export { CATEGORIES, PRODUCTS };
 export { productPath, categoryPath, quotePath, stockLabel, type CatalogCard, type DisplayImage } from "./shared";
@@ -54,7 +81,14 @@ export function relatedProducts(product: CatalogProduct, count = 4): CatalogProd
 /** The product's photos, or the generic category image when it has none. */
 export function displayImages(product: CatalogProduct): DisplayImage[] {
   if (product.images.length) {
-    return product.images.map(({ src, width, height, alt }) => ({ src, width, height, alt, isPlaceholder: false }));
+    return product.images.map(({ src, width, height, alt, kind }) => ({
+      src,
+      width,
+      height,
+      alt,
+      isPlaceholder: false,
+      ...(kind ? { kind } : {}),
+    }));
   }
   const category = categoryOf(product);
   return [
@@ -95,6 +129,8 @@ export function searchText(product: CatalogProduct): string {
 
 export function toCard(product: CatalogProduct, priceLabel: string | null = null): CatalogCard {
   const category = categoryOf(product);
+  const images = displayImages(product);
+  const hover = images.find((i) => i.kind === "in-use") ?? images[1] ?? null;
   return {
     slug: product.slug,
     sku: product.sku,
@@ -103,7 +139,10 @@ export function toCard(product: CatalogProduct, priceLabel: string | null = null
     categoryName: category.name,
     unit: product.unit,
     soldBy: soldByPhrase(product),
-    image: displayImages(product)[0]!,
+    image: images[0]!,
+    hoverImage: hover && hover !== images[0] ? hover : null,
+    core: product.tier === "core",
+    rank: product.rank ?? null,
     stockStatus: product.stockStatus,
     isService: product.isService,
     search: searchText(product),

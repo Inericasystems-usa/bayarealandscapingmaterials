@@ -70,11 +70,11 @@ for (const path of PAGES) {
         await page.goto(path, { waitUntil: "networkidle" });
         await scrollThrough(page);
         expect(await sidewaysOverflow(page)).toEqual([]);
-        const widths = await page.evaluate(() => [
-          document.documentElement.scrollWidth,
-          document.documentElement.clientWidth,
-        ]);
-        expect(widths[0]).toBeLessThanOrEqual(widths[1]);
+        const { scroll, client } = await page.evaluate(() => ({
+          scroll: document.documentElement.scrollWidth,
+          client: document.documentElement.clientWidth,
+        }));
+        expect(scroll).toBeLessThanOrEqual(client);
       });
     }
 

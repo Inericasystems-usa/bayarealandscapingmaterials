@@ -18,3 +18,13 @@ yarn.lock
 coverage/
 test-results/
 playwright-report/
+
+# Catalog asset pack: source renders and the POS asset manifest (it carries
+# cost). Never served and never committed; scripts/import-catalog-assets.mjs
+# reads it and writes only optimised images and public fields.
+apps/web/assets-src/
+apps/web/public/catalog/POS_Asset_System/
+apps/web/public/catalog/POS_Ready_AVIF/
+apps/web/public/catalog/Product_Images/
+apps/web/public/catalog/Source_Catalog_Photos/
+reviews/

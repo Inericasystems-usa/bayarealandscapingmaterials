@@ -1,0 +1,1834 @@
+{
+  "decomposed-granite-blue-dust-1-4-in-minus": {
+    "rank": 1,
+    "demandScore": 96,
+    "tier": "core",
+    "tags": [
+      "Construction Aggregate Bulk",
+      "Decomposed Granite (Blue Dust) 1/4\" minus",
+      "Cubic Yard"
+    ]
+  },
+  "topsoil-supreme": {
+    "rank": 4,
+    "demandScore": 96,
+    "tier": "core",
+    "tags": [
+      "Soil & Amendments",
+      "Topsoil Supreme",
+      "Yard"
+    ]
+  },
+  "drain-rock-3-4-in": {
+    "rank": 5,
+    "demandScore": 93,
+    "tier": "core",
+    "tags": [
+      "Construction Aggregate Bulk",
+      "Drain Rock 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "california-sun-gold-3-4-in": {
+    "rank": 6,
+    "demandScore": 92,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "California Sun Gold 3/4\"",
+      "Yard"
+    ]
+  },
+  "black-bark": {
+    "rank": 7,
+    "demandScore": 91,
+    "tier": "core",
+    "tags": [
+      "Bark Bulk",
+      "Black Bark",
+      "Cubic Yard"
+    ]
+  },
+  "shredded-redwood-gorilla-hair": {
+    "rank": 8,
+    "demandScore": 91,
+    "tier": "core",
+    "tags": [
+      "Bark Bulk",
+      "Shredded Redwood (Gorilla Hair)",
+      "Cubic Yard"
+    ]
+  },
+  "road-base-class-ii-base-rock-3-4-minus": {
+    "rank": 10,
+    "demandScore": 90,
+    "tier": "core",
+    "tags": [
+      "Construction Aggregate Bulk",
+      "Road Base (Class II Base Rock) 3/4 minus",
+      "Yard"
+    ]
+  },
+  "dolomite-3-4-in": {
+    "rank": 11,
+    "demandScore": 89,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Dolomite 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "decomposed-granite-gold-fines": {
+    "rank": 12,
+    "demandScore": 86,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Decomposed Granite  (Gold Fines)",
+      "Yard"
+    ]
+  },
+  "salt-and-pepper-3-4-in": {
+    "rank": 13,
+    "demandScore": 86,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Salt & Pepper 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "mexican-beach-pebble-black-1-x-2-in": {
+    "rank": 15,
+    "demandScore": 85,
+    "tier": "core",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Beach Pebble BLACK 1\" x 2\"",
+      "Lb"
+    ]
+  },
+  "concrete-paver-sand": {
+    "rank": 16,
+    "demandScore": 85,
+    "tier": "core",
+    "tags": [
+      "Sand Bulk",
+      "Concrete / Paver Sand",
+      "Cubic Yard"
+    ]
+  },
+  "mexican-beach-pebble-black-2-x-3-in": {
+    "rank": 17,
+    "demandScore": 85,
+    "tier": "core",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Beach Pebble BLACK 2\" x 3\"",
+      "Lb"
+    ]
+  },
+  "california-sun-gold-1-5-in": {
+    "rank": 19,
+    "demandScore": 84,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "California Sun Gold 1.5\"",
+      "Yard"
+    ]
+  },
+  "lodi-3-4-in": {
+    "rank": 20,
+    "demandScore": 83,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Lodi 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "salt-and-pepper-1-2-in": {
+    "rank": 21,
+    "demandScore": 83,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Salt & Pepper 1/2\"",
+      "Cubic Yard"
+    ]
+  },
+  "premium-fir-bark-medium": {
+    "rank": 22,
+    "demandScore": 82,
+    "tier": "core",
+    "tags": [
+      "Bark Bulk",
+      "Premium Fir Bark Medium",
+      "Cubic Yard"
+    ]
+  },
+  "premium-fir-bark-small": {
+    "rank": 23,
+    "demandScore": 82,
+    "tier": "core",
+    "tags": [
+      "Bark Bulk",
+      "Premium Fir Bark Small",
+      "Cubic Yard"
+    ]
+  },
+  "pami-pebbles-3-4-in": {
+    "rank": 25,
+    "demandScore": 81,
+    "tier": "core",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Pami Pebbles 3/4\"",
+      "Lb"
+    ]
+  },
+  "pami-pebbles-3-8-in": {
+    "rank": 26,
+    "demandScore": 81,
+    "tier": "core",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Pami Pebbles 3/8\"",
+      "Lb"
+    ]
+  },
+  "dolomite-1-5-in": {
+    "rank": 27,
+    "demandScore": 81,
+    "tier": "core",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Dolomite 1.5\"",
+      "Yard"
+    ]
+  },
+  "pami-pebbles-1-2-in": {
+    "rank": 29,
+    "demandScore": 78,
+    "tier": "standard",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Pami Pebbles 1/2\"",
+      "Lb"
+    ]
+  },
+  "black-lava-3-4-in": {
+    "rank": 31,
+    "demandScore": 78,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Black Lava 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "salt-and-pepper-1-5-in": {
+    "rank": 32,
+    "demandScore": 78,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Salt & Pepper 1.5\"",
+      "Cubic Yard"
+    ]
+  },
+  "citystone-demi-chicago": {
+    "rank": 33,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "CityStone Demi - Chicago",
+      "Each"
+    ]
+  },
+  "citystone-demi-frost-blend": {
+    "rank": 34,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "CityStone Demi - Frost Blend",
+      "Each"
+    ]
+  },
+  "citystone-supra-chicago": {
+    "rank": 35,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "CityStone Supra - Chicago",
+      "Each"
+    ]
+  },
+  "holland-stone-charcoal": {
+    "rank": 36,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "Holland Stone - Charcoal",
+      "Each"
+    ]
+  },
+  "playground-bark-cedar": {
+    "rank": 37,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Bark Bulk",
+      "Playground Bark (Cedar)",
+      "Cubic Yard"
+    ]
+  },
+  "red-lava-3-4-in": {
+    "rank": 38,
+    "demandScore": 76,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Red Lava 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "lodi-1-5-in": {
+    "rank": 39,
+    "demandScore": 75,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Lodi  1.5\"",
+      "Cubic Yard"
+    ]
+  },
+  "pami-pebbles-1-5-in": {
+    "rank": 41,
+    "demandScore": 73,
+    "tier": "standard",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Pami Pebbles 1.5\"",
+      "Lb"
+    ]
+  },
+  "salmon-bay-1-4-in": {
+    "rank": 42,
+    "demandScore": 73,
+    "tier": "standard",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Salmon Bay 1/4\"",
+      "Lb"
+    ]
+  },
+  "red-lava-1-8-in-minus": {
+    "rank": 43,
+    "demandScore": 73,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Red Lava 1/8\" minus",
+      "Cubic Yard"
+    ]
+  },
+  "red-lava-5-16-in-minus": {
+    "rank": 44,
+    "demandScore": 73,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Red Lava 5/16\" minus",
+      "Cubic Yard"
+    ]
+  },
+  "panorama-demi-bundle-abbronza": {
+    "rank": 45,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "PANORAMA Demi Bundle - Abbronza",
+      "Each"
+    ]
+  },
+  "panorama-demi-bundle-truckee": {
+    "rank": 46,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "PANORAMA Demi Bundle - Truckee",
+      "Each"
+    ]
+  },
+  "panorama-supra-bundle-tahoe": {
+    "rank": 47,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Pavers",
+      "PANORAMA Supra Bundle - Tahoe",
+      "Each"
+    ]
+  },
+  "nolyio-noyo-1-5-in": {
+    "rank": 48,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Nolyio 1.5\"",
+      "Yard"
+    ]
+  },
+  "nolyio-noyo-2-x-4-in": {
+    "rank": 49,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Nolyio 2\" x 4\"",
+      "Yard"
+    ]
+  },
+  "nolyio-noyo-4-x-8-in": {
+    "rank": 50,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Nolyio 4\" x 8\"",
+      "Yard"
+    ]
+  },
+  "river-wash": {
+    "rank": 51,
+    "demandScore": 72,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "River Wash",
+      "Lb"
+    ]
+  },
+  "silverstone-3-4-in": {
+    "rank": 53,
+    "demandScore": 71,
+    "tier": "standard",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Silverstone 3/4\"",
+      "Cubic Yard"
+    ]
+  },
+  "28-oz-tube-seams-right-turf-adhesive": {
+    "rank": 54,
+    "demandScore": 70,
+    "tier": "standard",
+    "tags": [
+      "Adhesive",
+      "28 OZ TUBES SEAMS RIGHT TURF ADHESIVE",
+      "Each"
+    ]
+  },
+  "pge-utility-sand": {
+    "rank": 56,
+    "demandScore": 70,
+    "tier": "standard",
+    "tags": [
+      "Sand Bulk",
+      "PG&E Utility Sand",
+      "Cubic Yard"
+    ]
+  },
+  "black-chips-nuggets": {
+    "rank": 58,
+    "demandScore": 67,
+    "tier": "standard",
+    "tags": [
+      "Bark Bulk",
+      "Black Chips/Nuggets",
+      "Cubic Yard"
+    ]
+  },
+  "mexican-beach-pebble-rainbow-1-4-x-1-2-in": {
+    "rank": 59,
+    "demandScore": 67,
+    "tier": "standard",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Beach Pebble RAINBOW 1/4\" x 1/2\"",
+      "Lb"
+    ]
+  },
+  "egyptian-plum-bark": {
+    "rank": 60,
+    "demandScore": 67,
+    "tier": "standard",
+    "tags": [
+      "Bark Bulk",
+      "Egyptian Plum Bark",
+      "Cubic Yard"
+    ]
+  },
+  "brown-plaster-sand": {
+    "rank": 61,
+    "demandScore": 66,
+    "tier": "standard",
+    "tags": [
+      "Sand Bulk",
+      "Brown Plaster Sand",
+      "Yard"
+    ]
+  },
+  "mexican-beach-pebble-red-1-x-2-in": {
+    "rank": 62,
+    "demandScore": 64,
+    "tier": "select",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Beach Pebble RED 1\" x 2\"",
+      "Lb"
+    ]
+  },
+  "mexican-beach-pebble-red-2-x-3-in": {
+    "rank": 63,
+    "demandScore": 64,
+    "tier": "select",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Beach Pebble RED 2\" x 3\"",
+      "Lb"
+    ]
+  },
+  "onyx-slate-chip-3-in": {
+    "rank": 64,
+    "demandScore": 63,
+    "tier": "select",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Onyx Slate Chip 3\"",
+      "Yard"
+    ]
+  },
+  "silverstone-1-5-in": {
+    "rank": 65,
+    "demandScore": 63,
+    "tier": "select",
+    "tags": [
+      "Decorative Rock Bulk",
+      "Silverstone 1.5\"",
+      "Cubic Yard"
+    ]
+  },
+  "angular-moss-rock": {
+    "rank": 66,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Baskets / Boulders",
+      "Angular Moss Rock",
+      "Lb"
+    ]
+  },
+  "black-bender-board-1-x-4": {
+    "rank": 67,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "1 x 4 BLACK BENDER BOARD",
+      "Each"
+    ]
+  },
+  "10-oz-tube-voc-adhesive": {
+    "rank": 68,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Adhesive",
+      "10 OZ TUBES VOC ADHESIVE",
+      "Each"
+    ]
+  },
+  "moss-rock-round": {
+    "rank": 69,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Baskets / Boulders",
+      "MOSS ROCK (Round)",
+      "Lb"
+    ]
+  },
+  "brown-bender-board-1-x-4": {
+    "rank": 70,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "1 x 4 BROWN BENDER BOARD",
+      "Each"
+    ]
+  },
+  "28-oz-tube-rapid-set-adhesive": {
+    "rank": 71,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Adhesive",
+      "28 OZ TUBES RAPID SET ADHESIVE",
+      "Each"
+    ]
+  },
+  "brown-bender-board-1-x-6": {
+    "rank": 72,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "1 x 6 BROWN BENDER BOARD",
+      "Each"
+    ]
+  },
+  "28-oz-tube-voc-adhesive": {
+    "rank": 73,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Adhesive",
+      "28 OZ TUBES VOC ADHESIVE",
+      "Each"
+    ]
+  },
+  "10-in-tamper": {
+    "rank": 74,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "10\" Tamper",
+      "Each"
+    ]
+  },
+  "9-5-oz-tube-vertical-instant-lock-adhesive": {
+    "rank": 75,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Adhesive",
+      "9.5 OZ TUBES VERTICAL INSTANT LOCK ADHESIVE",
+      "Each"
+    ]
+  },
+  "seams-right-turf-seam-tape-12-x-100-ft": {
+    "rank": 76,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "12\" X 100' SEAMS RIGHT TURF TAPE",
+      "Each"
+    ]
+  },
+  "seams-right-turf-seam-tape-12-x-50-ft": {
+    "rank": 77,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "12\" x 50' SEAMS RIGHT TURF TAPE",
+      "Each"
+    ]
+  },
+  "6-in-landscape-staples-u-pins-20-count": {
+    "rank": 78,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "20 CT 6\" STAPLES",
+      "Each"
+    ]
+  },
+  "6-in-landscape-staples-u-pins-50-count": {
+    "rank": 79,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "50 CT 6\" STAPLES",
+      "Each"
+    ]
+  },
+  "seams-right-turf-seam-tape-6-x-100-ft": {
+    "rank": 80,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "6\" X 100' SEAMS RIGHT TURF TAPE",
+      "Each"
+    ]
+  },
+  "8-in-tamper": {
+    "rank": 81,
+    "demandScore": 62,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "8\" Tamper",
+      "each"
+    ]
+  },
+  "pavermate-z3-polymeric-sand-beige-50-lb-bag": {
+    "rank": 82,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "50# BAG BEIGE PAVERMATE Z3 49/PLT",
+      "Each"
+    ]
+  },
+  "compac-iii-triplane-tan": {
+    "rank": 83,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Compac III Tripane - Tan",
+      "Each"
+    ]
+  },
+  "pavermate-z3-polymeric-sand-black-50-lb-bag": {
+    "rank": 84,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "50# BAG BLACK PAVERMATE Z3 49/PLT",
+      "Each"
+    ]
+  },
+  "compac-iii-triplane-grey": {
+    "rank": 85,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Compac III Triplane - Grey",
+      "Each"
+    ]
+  },
+  "pavermate-x-treme-polymeric-sand-granite-50-lb-bag": {
+    "rank": 86,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "50# BAG GRANTE X-TREME PAVERMATE 49/PLT",
+      "Each"
+    ]
+  },
+  "estate-wall-ashlar-6x16x10": {
+    "rank": 87,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Estate Wall Ashlar 6x16x10",
+      "Each"
+    ]
+  },
+  "pavermate-z3-polymeric-sand-grey-50-lb-bag": {
+    "rank": 88,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "50# BAG GREY PAVERMATE Z3 49/PLT",
+      "Each"
+    ]
+  },
+  "harington-3-pc-fsw-sierra": {
+    "rank": 89,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "HARINGTON 3 PC FSW - Sierra",
+      "Each"
+    ]
+  },
+  "pavermate-x-treme-polymeric-sand-tan-50-lb-bag": {
+    "rank": 90,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "50# BAG TAN X-TREME PAVERMATE 49/PLT",
+      "Each"
+    ]
+  },
+  "harington-3-pc-fsw-truckee": {
+    "rank": 91,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "HARINGTON 3 PC FSW - Truckee",
+      "Each"
+    ]
+  },
+  "sacked-30-mesh-sand-50-lb": {
+    "rank": 92,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "Sacked 30MESH Sand",
+      "Each"
+    ]
+  },
+  "harington-3-pc-rtw-sierra": {
+    "rank": 93,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "HARINGTON 3 PC RTW - Sierra",
+      "Each"
+    ]
+  },
+  "sakrete-high-strength-concrete-mix-80-lb": {
+    "rank": 94,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "Sacked Concrete 80lbs",
+      "Each"
+    ]
+  },
+  "harington-3-pc-rtw-truckee": {
+    "rank": 95,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "HARINGTON 3 PC RTW - Truckee",
+      "Each"
+    ]
+  },
+  "sakrete-type-s-mortar-mix-60-lb": {
+    "rank": 96,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "Sacked Mortar Mix 60lbs",
+      "Each"
+    ]
+  },
+  "legacy-stone-triplane-buff": {
+    "rank": 97,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Lagacy Stone Triplane - Buff",
+      "Each"
+    ]
+  },
+  "portland-cement-94-lb": {
+    "rank": 98,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Bagged Products",
+      "Sacked Portland Cement 94Lb",
+      "Each"
+    ]
+  },
+  "legacy-stone-triplane-pewter": {
+    "rank": 99,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Legacy Stone Triplane - Pewter",
+      "Each"
+    ]
+  },
+  "legacy-stone-triplane-sandstone": {
+    "rank": 100,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "Legacy Stone Triplane - Sandstone",
+      "Each"
+    ]
+  },
+  "stonegate-tumbled-chicago": {
+    "rank": 101,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "STONEGATE Tumbled - Chicago",
+      "Each"
+    ]
+  },
+  "stonegate-tumbled-sandstone": {
+    "rank": 102,
+    "demandScore": 61,
+    "tier": "select",
+    "tags": [
+      "Wall Blocks",
+      "STONEGATE Tumbled - Sandstone",
+      "Each"
+    ]
+  },
+  "mexican-buttons-1-2-in-1-in": {
+    "rank": 103,
+    "demandScore": 60,
+    "tier": "select",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Mexican Buttons  1/2\"-1\"",
+      "Lb"
+    ]
+  },
+  "ground-control-3-oz-weed-fabric-4-x-100-ft": {
+    "rank": 104,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "3OZ GROUND CONTROL 4' X 100'",
+      "Each"
+    ]
+  },
+  "ground-control-3-oz-weed-fabric-6-x-100-ft": {
+    "rank": 105,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "3OZ GROUND CONTROL 6' X 100'",
+      "Each"
+    ]
+  },
+  "pro-plus-4-oz-landscape-fabric-4-x-100": {
+    "rank": 106,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "4 OZ PRO PLUS 4 X 100",
+      "Each"
+    ]
+  },
+  "pro-plus-4-oz-landscape-fabric-6-x-100": {
+    "rank": 107,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "4OZ PRO PLUS 6 X 100",
+      "Each"
+    ]
+  },
+  "professional-landscape-fabric-4-x-100-ft": {
+    "rank": 108,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "PROFESSIONAL 4' X 100'",
+      "Each"
+    ]
+  },
+  "professional-landscape-fabric-4-x-300": {
+    "rank": 109,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "PROFESSIONAL 4X300",
+      "Each"
+    ]
+  },
+  "professional-landscape-fabric-6-x-100": {
+    "rank": 110,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "PROFESSIONAL 6 X 100",
+      "Each"
+    ]
+  },
+  "professional-landscape-fabric-6-x-300": {
+    "rank": 111,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "PROFESSIONAL 6 X 300",
+      "Each"
+    ]
+  },
+  "sb2-spunbond-ii-commercial-fabric-4-x-100": {
+    "rank": 112,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "SB2 4 X 100",
+      "Each"
+    ]
+  },
+  "sb2-spunbond-ii-commercial-fabric-4-x-300": {
+    "rank": 113,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "SB2 4 X 300",
+      "Each"
+    ]
+  },
+  "sb2-spunbond-ii-commercial-fabric-6-x-100": {
+    "rank": 114,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "SB2 6 X 100",
+      "Each"
+    ]
+  },
+  "sb2-spunbond-ii-commercial-fabric-6-x-300": {
+    "rank": 115,
+    "demandScore": 59,
+    "tier": "select",
+    "tags": [
+      "Landscape Fabric/Rolls",
+      "SB2 6 X 300",
+      "Each"
+    ]
+  },
+  "4-in-rec-cap-831-grey": {
+    "rank": 118,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "Wall Caps",
+      "4\" Rec cap #831 - Grey",
+      "Each"
+    ]
+  },
+  "4-in-rec-cap-831-tan": {
+    "rank": 120,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "Wall Caps",
+      "4\" Rec Cap #831 - Tan",
+      "Each"
+    ]
+  },
+  "stonegate-cap-tumbled-chicago": {
+    "rank": 122,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "Wall Caps",
+      "STONEGATE CAP Tumbled - Chicago",
+      "Each"
+    ]
+  },
+  "cmu-standard-8-x-8-x-16-in-precision-110": {
+    "rank": 123,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "CMU",
+      "CMU STD 8\" x 8\" x 16 Precision 110",
+      "Each"
+    ]
+  },
+  "stonegate-cap-tumbled-sandstone": {
+    "rank": 124,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "Wall Caps",
+      "STONEGATE CAP Tumbled - Sandstone",
+      "Each"
+    ]
+  },
+  "cmu-standard-grey-6x8x16": {
+    "rank": 125,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "CMU",
+      "CMU STD GREY 6x8x16",
+      "Each"
+    ]
+  },
+  "trap-cap-3-in-sierra": {
+    "rank": 126,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "Wall Caps",
+      "Trap Cap 3\" - Sierra",
+      "Each"
+    ]
+  },
+  "cmu-standard-grey-8x8x16": {
+    "rank": 127,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "CMU",
+      "CMU STD GREY 8x8x16",
+      "Each"
+    ]
+  },
+  "pier-block-with-wood-cap-8-75-x-10-75-x-10-75-in": {
+    "rank": 129,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "CMU",
+      "Pier Blocks w/ wood cap  8.75\"x10.75\"x10.75\"",
+      "Each"
+    ]
+  },
+  "stepping-stone-12-x-12": {
+    "rank": 130,
+    "demandScore": 58,
+    "tier": "select",
+    "tags": [
+      "CMU",
+      "Stepping Stone 12 x 12",
+      "Each"
+    ]
+  },
+  "dg-dual-guard-specialty-seal-1-gallon": {
+    "rank": 131,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "1 GAL DG DUAL GUARD SPECIALTY SEAL",
+      "Each"
+    ]
+  },
+  "hg-xtreme-paver-seal-1-gallon": {
+    "rank": 132,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "1 GAL HG XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "lg-xtreme-paver-seal-1-gallon": {
+    "rank": 133,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "1 GAL LG XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "ps-xtreme-paver-seal-1-gallon": {
+    "rank": 134,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "1 GAL PS XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "dg-dual-guard-specialty-seal-5-gallon": {
+    "rank": 135,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "5 GALLON DG DUAL GUARD SPECIALTY SEAL",
+      "Each"
+    ]
+  },
+  "hg-xtreme-paver-seal-5-gallon": {
+    "rank": 136,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "5 GALLON HG XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "lg-xtreme-paver-seal-5-gallon": {
+    "rank": 137,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "5 GALLON LG XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "ps-xtreme-paver-seal-5-gallon": {
+    "rank": 138,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "5 GALLON PS XTREME PAVER SEAL",
+      "Each"
+    ]
+  },
+  "bark-binder-1-gallon": {
+    "rank": 139,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Bark Binder 1 Gallon",
+      "Each"
+    ]
+  },
+  "bark-binder-5-gallon": {
+    "rank": 140,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Bark Binder 5 Gallon",
+      "Each"
+    ]
+  },
+  "eko-flo-pebble-binder-1-gallon": {
+    "rank": 141,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Eko Flo Pebble Binder  1 Gallon",
+      "Each"
+    ]
+  },
+  "g3-commercial-surface-stabilizer-5-gallon": {
+    "rank": 142,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "G3 Commercial Surface Stabilizer 5 Gallon",
+      "Each"
+    ]
+  },
+  "g3-pathway-stabilizer-5-gallon": {
+    "rank": 143,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "G3 Pathway Stabilizer 5 Gallon",
+      "Each"
+    ]
+  },
+  "molecule-srs-stain-resistant-sealer-1-gallon": {
+    "rank": 144,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Molecule SRS - Stain Resistant Sealer 1 Gallon",
+      "Each"
+    ]
+  },
+  "nano-pave-hardscape-sealer-enhanced-1-gallon": {
+    "rank": 145,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Nano Pave Hardscape Sealer - Enhanced 1 Gallon",
+      "Each"
+    ]
+  },
+  "nano-pave-hardscape-sealer-enhanced-5-gallon": {
+    "rank": 146,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Nano Pave Hardscape Sealer - Enhanced 5 Gallon",
+      "Each"
+    ]
+  },
+  "nano-pave-jss-2-0-enhanced-1-gallon": {
+    "rank": 147,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Nano Pave JSS 2.0 Enhanced 1 Gallon",
+      "Each"
+    ]
+  },
+  "nano-pave-jss-2-0-enhanced-5-gallon": {
+    "rank": 148,
+    "demandScore": 57,
+    "tier": "select",
+    "tags": [
+      "Sealers",
+      "Nano Pave JSS 2.0 Enhanced 5 Gallon",
+      "Each"
+    ]
+  },
+  "black-lichen": {
+    "rank": 149,
+    "demandScore": 56,
+    "tier": "select",
+    "tags": [
+      "Baskets / Boulders",
+      "Black Lichen",
+      "Lb"
+    ]
+  },
+  "arizona-buff-flagstone-patio-1-in-2-in": {
+    "rank": 150,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Arizona Buff Flagstone PATIO 1\"-2\"",
+      "Lb"
+    ]
+  },
+  "arizona-buff-flagstone-select-1-in-2-in": {
+    "rank": 151,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Arizona Buff Flagstone SELECT 1\"-2\"",
+      "Lb"
+    ]
+  },
+  "arizona-peach-flagstone-select-1-in-2-in": {
+    "rank": 152,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Arizona Peach Flagstone SELECT  1\"-2\"",
+      "Lb"
+    ]
+  },
+  "arizona-rosa-flagstone-select-1-in-2-in": {
+    "rank": 153,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Arizona Rosa Flagstone SELECT 1\"-2\"",
+      "Lb"
+    ]
+  },
+  "black-slate-flagstone-2-in": {
+    "rank": 154,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Black Slate Flagstone2\"",
+      "Lb"
+    ]
+  },
+  "grey-mist-flagstone-1-in": {
+    "rank": 155,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Grey Mist Flagstone 1\"",
+      "Lb"
+    ]
+  },
+  "indian-bluestone-flagstone-1-in": {
+    "rank": 156,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Indian Bluestone Flagstone 1\"",
+      "Lb"
+    ]
+  },
+  "indian-bluestone-flagstone-2-in": {
+    "rank": 157,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Indian Bluestone Flagstone 2\"",
+      "Lb"
+    ]
+  },
+  "lime-black-flagstone-1-in": {
+    "rank": 158,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Lime Black Flagstone 1\"",
+      "Lb"
+    ]
+  },
+  "panther-flagstone-2-in": {
+    "rank": 159,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Panther Flagstone 2\"",
+      "Lb"
+    ]
+  },
+  "silver-pearl-flagstone-1-in": {
+    "rank": 160,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Silver Pearl Flagstone 1\"",
+      "Lb"
+    ]
+  },
+  "silver-pearl-flagstone-2-in": {
+    "rank": 161,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Silver Pearl Flagstone 2\"",
+      "Lb"
+    ]
+  },
+  "slate-grey-flagstone-1-in": {
+    "rank": 162,
+    "demandScore": 55,
+    "tier": "select",
+    "tags": [
+      "Flagstone/Slate",
+      "Slate Grey Flagstone 1\"",
+      "Lb"
+    ]
+  },
+  "1-gallon-poly-sprayer": {
+    "rank": 163,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "1 GALLON POLY SPRAYER",
+      "Each"
+    ]
+  },
+  "1-2-x-treme-slit-foam-roller-black": {
+    "rank": 164,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "1/2 \" X-TREME SLIT FOAM ROLLER BLACK",
+      "Each"
+    ]
+  },
+  "10-oz-101-standard-caulk-gun": {
+    "rank": 165,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "10 OZ #101 STANDARD GUN",
+      "Each"
+    ]
+  },
+  "11-2-in-gauging-brick-trowel": {
+    "rank": 166,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "11.2 in. Gauging Brick Trowel",
+      "Each"
+    ]
+  },
+  "12-x-4-in-stainless-steel-finishing-trowel": {
+    "rank": 167,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "12 in. x 4 in. Stainless Steel Finishing Trowel",
+      "Each"
+    ]
+  },
+  "13-16-in-slit-foam-roller-yellow": {
+    "rank": 168,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "13/16 \" SLIT FOAM ROLLER YELLOW",
+      "Each"
+    ]
+  },
+  "2-in-disposable-plastic-putty-knife": {
+    "rank": 169,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "2 in. Disposable Plastic Putty Knife",
+      "Each"
+    ]
+  },
+  "24-in-concrete-broom": {
+    "rank": 170,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "24 in. Concrete Broom",
+      "Each"
+    ]
+  },
+  "28-oz-105-standard-caulk-gun": {
+    "rank": 171,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "28 OZ #105 STANDARD GUN",
+      "Each"
+    ]
+  },
+  "28-oz-255-premium-caulk-gun": {
+    "rank": 172,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "28 OZ #255 PREMIUM GUN",
+      "Each"
+    ]
+  },
+  "4-in-filter-sock-100-ft": {
+    "rank": 173,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "4\" Filter Sock 100'",
+      "Each"
+    ]
+  },
+  "40d-5-in-smooth-turf-nails-50-lb-box": {
+    "rank": 174,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "40D 50# BOX 5\" SMOOTH NAILS",
+      "Each"
+    ]
+  },
+  "47-in-l-wood-handle-14-tines-garden-bow-rake": {
+    "rank": 175,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "47 in. L Wood Handle 14-Tines Garden Bow Rake",
+      "Each"
+    ]
+  },
+  "6-cu-ft-steel-tub-wheelbarrow": {
+    "rank": 176,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "6 cu. ft. Steel Tub Wheelbarrow",
+      "Each"
+    ]
+  },
+  "6-x-2-in-margin-trowel": {
+    "rank": 177,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "6 in. x 2 in. Margin Trowel",
+      "Each"
+    ]
+  },
+  "60d-6-in-spiral-galvanized-turf-nails-50-lb-box": {
+    "rank": 178,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "60D 50# BOX 6\" SPIRAL GALVANIZED NAILS",
+      "Each"
+    ]
+  },
+  "blue-suede-cowhide-leather-and-denim-large-work-gloves": {
+    "rank": 179,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Blue Suede Cowhide Leather and Denim Large Work Gloves",
+      "Each"
+    ]
+  },
+  "wildcat-42-gal-cleanup-bags": {
+    "rank": 180,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Cleanup Bags 42 Gal. - WILDCAT",
+      "Each"
+    ]
+  },
+  "eggbeater-mixer": {
+    "rank": 182,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Eggbeater Mixer",
+      "Each"
+    ]
+  },
+  "grain-cowhide-leather-large-work-gloves": {
+    "rank": 183,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Grain Cowhide Leather Large Work Gloves",
+      "Each"
+    ]
+  },
+  "grout-bag": {
+    "rank": 184,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Grout Bag",
+      "Each"
+    ]
+  },
+  "grouting-sponge": {
+    "rank": 185,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Grouting Sponge",
+      "Each"
+    ]
+  },
+  "large-nitrile-coated-work-gloves": {
+    "rank": 186,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Large Nitrile Coated Work Gloves 0.99/pair",
+      "Each"
+    ]
+  },
+  "plastic-stakes-black-12-in": {
+    "rank": 187,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Plastic Stakes Black 12\"",
+      "Each"
+    ]
+  },
+  "plastic-stakes-brown-12-in": {
+    "rank": 188,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Plastic Stakes Brown 12\"",
+      "Each"
+    ]
+  },
+  "round-point-47-in-wood-handle-carbon-steel-digging-shovel": {
+    "rank": 189,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "RO 47 in. Wood Handle Carbon Steel Digging Shovel",
+      "Each"
+    ]
+  },
+  "small-mixing-tub": {
+    "rank": 190,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Small Mixing Tub",
+      "Each"
+    ]
+  },
+  "square-point-47-in-wood-handle-carbon-steel-transfer-shovel": {
+    "rank": 191,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "SQ 47 in. Wood Handle Carbon Steel Transfer Shovel",
+      "Each"
+    ]
+  },
+  "stakes-pine-12-pack": {
+    "rank": 192,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "Stakes-Pine (12-Pack)",
+      "Each"
+    ]
+  },
+  "stanley-25-x-1-in-tape-measure": {
+    "rank": 193,
+    "demandScore": 54,
+    "tier": "select",
+    "tags": [
+      "Tools/Accessories",
+      "STANLEY 25 ft. x 1 in. Tape Measure",
+      "Each"
+    ]
+  },
+  "dw-dual-wash-1-gallon": {
+    "rank": 203,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "1 GAL DW DUAL WASH",
+      "Each"
+    ]
+  },
+  "ef-efflorescence-cleaner-1-gallon": {
+    "rank": 204,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "1 GAL EF EFFLORESCENCE",
+      "Each"
+    ]
+  },
+  "m3c-mold-moss-and-mildew-cleaner-1-gallon": {
+    "rank": 205,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "1 GAL M3C MOLD",
+      "MOSS",
+      "MILDEW CLNR",
+      "Each"
+    ]
+  },
+  "ss-sealer-stripper-1-gallon": {
+    "rank": 206,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "1 GAL SS SEALER STRIPPER",
+      "Each"
+    ]
+  },
+  "dw-dual-wash-5-gallon": {
+    "rank": 207,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "5 GALLON DW DUAL WASH",
+      "Each"
+    ]
+  },
+  "ef-efflorescence-cleaner-5-gallon": {
+    "rank": 208,
+    "demandScore": 52,
+    "tier": "select",
+    "tags": [
+      "Cleaners",
+      "5 GALLON EF EFFLORESCENCE",
+      "Each"
+    ]
+  },
+  "cold-water-canyon": {
+    "rank": 209,
+    "demandScore": 50,
+    "tier": "select",
+    "tags": [
+      "Baskets / Boulders",
+      "Cold Water Canyon",
+      "Lb"
+    ]
+  },
+  "pami-cobbles-3-in-6-in": {
+    "rank": 210,
+    "demandScore": 46,
+    "tier": "select",
+    "tags": [
+      "PREMIUM Decorative Rocks",
+      "Pami Cobbles 3\"-6\"",
+      "Lb"
+    ]
+  }
+}

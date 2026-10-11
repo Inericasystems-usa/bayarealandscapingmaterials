@@ -26,6 +26,8 @@ export interface DisplayImage {
   alt: string;
   /** True for the generic category image shown while a product has no photo. */
   isPlaceholder: boolean;
+  /** "studio" render, "in-use" example scene, or (absent) a photo from the yard. */
+  kind?: "studio" | "in-use";
 }
 
 /** The light, price-free shape the client-side grids receive. */
@@ -38,6 +40,12 @@ export interface CatalogCard {
   unit: string;
   soldBy: string;
   image: DisplayImage;
+  /** A second picture the card fades to on hover (the in-use scene when there is one). */
+  hoverImage: DisplayImage | null;
+  /** Everyday core material (demand tier from the asset manifest). */
+  core: boolean;
+  /** Demand rank, for the "Popular" sort; null when unranked. */
+  rank: number | null;
   stockStatus: StockStatus;
   isService: boolean;
   search: string;
