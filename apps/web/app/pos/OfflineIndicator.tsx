@@ -18,7 +18,7 @@ export function OfflineIndicator() {
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
         online
           ? "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]"
-          : "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]"
+          : "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]"
       }`}
     >
       {online ? (

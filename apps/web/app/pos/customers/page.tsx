@@ -1079,7 +1079,7 @@ export default function CustomersPage() {
                       </div>
                     </dl>
 
-                    <div className="mt-3 flex items-center justify-between rounded-[var(--radius-md)] bg-[var(--color-moss-100)]/50 px-3 py-2">
+                    <div className="mt-3 flex items-center justify-between rounded-[var(--radius-md)] bg-[color-mix(in_oklab,var(--color-moss-100)_50%,transparent)] px-3 py-2">
                       <span className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)]">
                         <Gift className="h-4 w-4 text-[var(--color-text-brand)]" strokeWidth={1.75} aria-hidden />
                         <span className="font-semibold text-[var(--color-text-primary)]">{editing.account?.loyaltyPoints ?? 0}</span>

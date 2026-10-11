@@ -71,7 +71,7 @@ export function PosBell() {
                     <span
                       className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${
                         n.type === "low_stock"
-                          ? "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]"
+                          ? "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]"
                           : "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]"
                       }`}
                     >

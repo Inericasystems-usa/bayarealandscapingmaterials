@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Calculator } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Calculator, MessagesSquare, Sprout, Tag, Truck, Zap } from "lucide-react";
 import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
 import { Hero } from "@/components/home/Hero";
 import { MaterialShowcase } from "@/components/home/MaterialShowcase";
 import { GoogleReviews } from "@/components/home/GoogleReviews";
+import { PopularMaterials } from "@/components/home/PopularMaterials";
 import { SERVICES } from "@/lib/site-content";
 import { SCENES } from "@/lib/scenes";
 import footer_img from "@/public/image/home_footer.png"
@@ -26,6 +27,15 @@ const WHY_US = [
   { t: "We know dirt", d: "Talk to people who've spec'd retaining walls and garden paths for 10,000+ Bay Area projects." },
 ] as const;
 
+const SERVICE_ICONS: Record<string, typeof Truck> = {
+  "Bulk Delivery": Truck,
+  "Custom Soil Blends": Sprout,
+  "Material Calculator": Calculator,
+  "Expert Consultation": MessagesSquare,
+  "Competitive Pricing": Tag,
+  "Same-Day Quotes": Zap,
+};
+
 const SCALE = [
   { value: "150+", label: "Products in stock" },
   { value: "10,000+", label: "Projects supplied" },
@@ -40,6 +50,9 @@ export default function HomePage() {
 
       {/* ── SHOP BY MATERIAL — category grid ─────────────────── */}
       <MaterialShowcase />
+
+      {/* ── CORE MATERIALS — real products, real prices ─────── */}
+      <PopularMaterials />
 
       {/* ── WHY THE YARD — value props + scale ───────────────── */}
       <section className="bg-[var(--color-moss-50)] py-20 md:py-28">
@@ -146,26 +159,31 @@ export default function HomePage() {
               From yard to jobsite
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2">
-            {SERVICES.map((s, i) => (
-              <div
-                key={s.title}
-                className="group flex gap-5 border-b border-[var(--color-border)] py-7 transition-colors duration-200 hover:bg-[var(--color-bg-elevated)] md:px-4 md:[&:nth-child(odd)]:border-r"
-              >
-                <span className="font-mono text-sm text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text-brand)]">
-                  0{i + 1}
-                </span>
-                <div className="flex-1">
-                  <h3 className="font-display text-xl font-medium text-[var(--color-text-primary)]">{s.title}</h3>
-                  <p className="mt-1.5 max-w-md text-sm leading-relaxed text-[var(--color-text-secondary)]">{s.description}</p>
-                </div>
-                <ArrowUpRight
-                  className="h-5 w-5 shrink-0 text-[var(--color-text-muted)] opacity-0 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[var(--color-text-brand)] group-hover:opacity-100"
-                  aria-hidden
-                />
-              </div>
-            ))}
-          </div>
+          <ul className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
+            {SERVICES.map((s) => {
+              const Icon = SERVICE_ICONS[s.title] ?? ArrowUpRight;
+              return (
+                <li key={s.title}>
+                  <Link
+                    href={s.href}
+                    className="hover-lift group flex h-full flex-col rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4 transition-colors hover:border-[var(--color-moss-300)] sm:p-6"
+                  >
+                    <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--color-moss-50)] text-[var(--color-moss-700)] transition-colors duration-300 group-hover:bg-[var(--color-moss-700)] group-hover:text-white">
+                      <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <h3 className="mt-4 flex items-center gap-1.5 font-display text-base font-medium text-[var(--color-text-primary)] sm:text-xl">
+                      {s.title}
+                      <ArrowUpRight
+                        className="h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--color-text-brand)]"
+                        aria-hidden
+                      />
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-text-secondary)]">{s.description}</p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 
@@ -207,10 +225,10 @@ export default function HomePage() {
         {/* Faint texture under a 90% wash: low quality is invisible here and saves bytes. */}
         <Image src={footer_img} alt="" fill sizes="100vw" quality={50} className="object-cover opacity-35" />
         {/* bold green wash — image reads as faint texture only */}
-        <div className="absolute inset-0 bg-[var(--color-moss-900)]/90 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-moss-800)]/92 via-[var(--color-moss-900)]/95 to-[var(--color-moss-950)]/97" />
+        <div className="absolute inset-0 bg-[color-mix(in_oklab,var(--color-moss-900)_90%,transparent)] mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_oklab,var(--color-moss-800)_92%,transparent)] via-[color-mix(in_oklab,var(--color-moss-900)_95%,transparent)] to-[color-mix(in_oklab,var(--color-moss-950)_97%,transparent)]" />
         {/* vertical darkening behind the copy block */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[var(--color-moss-950)]/45 via-transparent to-[var(--color-moss-950)]/55" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[color-mix(in_oklab,var(--color-moss-950)_45%,transparent)] via-transparent to-[color-mix(in_oklab,var(--color-moss-950)_55%,transparent)]" />
         <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="font-display text-[clamp(2.2rem,5vw,4rem)] font-light leading-[1.0] tracking-tight text-white">
             Ready to break <span className="italic text-[var(--color-moss-300)]">ground?</span>

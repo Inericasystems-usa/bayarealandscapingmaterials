@@ -40,6 +40,8 @@ export interface CatalogCard {
   unit: string;
   soldBy: string;
   image: DisplayImage;
+  /** "cover" fills the tile (loose material, renders); "contain" keeps a packaged product whole. */
+  fill: "cover" | "contain";
   /** A second picture the card fades to on hover (the in-use scene when there is one). */
   hoverImage: DisplayImage | null;
   /** Everyday core material (demand tier from the asset manifest). */

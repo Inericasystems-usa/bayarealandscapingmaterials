@@ -78,7 +78,7 @@ export default function AccessPage() {
       </div>
 
       {error && (
-        <div className="border-b border-[var(--color-border)] bg-[var(--color-clay-500)]/10 px-5 py-2 text-sm text-[var(--color-warning)]">
+        <div className="border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-clay-500)_10%,transparent)] px-5 py-2 text-sm text-[var(--color-warning)]">
           Can&apos;t reach the API — start it with <code>pnpm dev</code> in apps/api.
         </div>
       )}

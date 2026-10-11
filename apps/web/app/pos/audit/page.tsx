@@ -17,15 +17,15 @@ const FILTERS = [
 ];
 
 const ACTION_TONE: Record<string, string> = {
-  "order.void": "bg-[var(--color-danger)]/15 text-[var(--color-danger)]",
-  "product.delete": "bg-[var(--color-danger)]/15 text-[var(--color-danger)]",
-  "user.deactivate": "bg-[var(--color-danger)]/15 text-[var(--color-danger)]",
-  "order.discount": "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]",
+  "order.void": "bg-[color-mix(in_oklab,var(--color-danger)_15%,transparent)] text-[var(--color-danger)]",
+  "product.delete": "bg-[color-mix(in_oklab,var(--color-danger)_15%,transparent)] text-[var(--color-danger)]",
+  "user.deactivate": "bg-[color-mix(in_oklab,var(--color-danger)_15%,transparent)] text-[var(--color-danger)]",
+  "order.discount": "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]",
   "ar.payment": "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]",
   "loyalty.redeem": "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]",
   "user.create": "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]",
-  "register.close": "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]",
-  "user.update": "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]",
+  "register.close": "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]",
+  "user.update": "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]",
   "settings.update": "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)]",
 };
 

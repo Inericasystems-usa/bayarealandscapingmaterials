@@ -32,7 +32,7 @@ export default function AiPage() {
             Smart workflow assistance · managed by {status?.managedBy ?? "inerica systems"}
           </p>
         </div>
-        <span className="flex items-center gap-1.5 rounded-full bg-[var(--color-clay-500)]/15 px-3 py-1 text-xs font-semibold text-[var(--color-warning)]">
+        <span className="flex items-center gap-1.5 rounded-full bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-warning)]">
           <Clock3 className="h-3.5 w-3.5" /> Phase 2 · coming soon
         </span>
       </div>

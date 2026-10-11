@@ -101,7 +101,7 @@ function BeforeAfterSlider({ before, after, title }: { before: string; after: st
         </div>
       </div>
       <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white backdrop-blur-sm">BEFORE</div>
-      <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-[var(--color-moss-600)]/90 px-2 py-1 text-xs font-bold text-white backdrop-blur-sm">AFTER</div>
+      <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-[color-mix(in_oklab,var(--color-moss-600)_90%,transparent)] px-2 py-1 text-xs font-bold text-white backdrop-blur-sm">AFTER</div>
     </div>
   );
 }

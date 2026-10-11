@@ -44,7 +44,7 @@ export function ProductCard({ card, headingLevel = 3 }: { card: CatalogCard; hea
           sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw"
           // Renders and the generic placeholder fill the tile; tool photos shot
           // on white keep the whole product in frame.
-          className={`${card.image.isPlaceholder || card.image.kind ? "object-cover" : "object-contain"} transition-transform duration-[900ms] ease-out group-hover:scale-105`}
+          className={`${card.image.isPlaceholder || card.fill === "cover" ? "object-cover" : "object-contain p-3"} transition-transform duration-[900ms] ease-out group-hover:scale-105`}
         />
         {card.hoverImage ? (
           // The in-use scene (or second photo) fades in on hover; lazy, so it
@@ -59,7 +59,7 @@ export function ProductCard({ card, headingLevel = 3 }: { card: CatalogCard; hea
           />
         ) : null}
         {card.core ? (
-          <span className="absolute right-3 top-3 rounded-full bg-[var(--color-moss-900)]/85 px-2.5 py-0.5 text-[0.68rem] font-semibold text-white backdrop-blur-sm">
+          <span className="absolute right-3 top-3 rounded-full bg-[rgb(14_36_27/0.82)] px-2.5 py-0.5 text-[0.68rem] font-semibold text-white backdrop-blur-sm">
             Core material
           </span>
         ) : null}
@@ -79,11 +79,19 @@ export function ProductCard({ card, headingLevel = 3 }: { card: CatalogCard; hea
         <p className="mb-4 mt-1 text-sm text-[var(--color-text-secondary)]">
           {card.soldBy.charAt(0).toUpperCase() + card.soldBy.slice(1)}
         </p>
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border)] pt-3">
-          <span className="font-display text-base font-medium text-[var(--color-text-primary)]">
+        <div className="mt-auto border-t border-[var(--color-border)] pt-3">
+          <p className="font-display text-base font-medium text-[var(--color-text-primary)]">
             {card.priceLabel ?? CONTACT_FOR_PRICING}
-          </span>
-          {card.isService ? null : <StockBadge status={card.stockStatus} />}
+          </p>
+          {card.isService ? null : (
+            <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-secondary)]">
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${card.stockStatus === "instock" ? "bg-[var(--color-moss-500)]" : "bg-[var(--color-text-muted)]"}`}
+              />
+              {stockLabel(card.stockStatus)}
+            </p>
+          )}
         </div>
       </div>
     </Link>

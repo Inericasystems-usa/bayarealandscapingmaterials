@@ -142,3 +142,10 @@ html {
     scroll-behavior: smooth;
   }
 }
+
+/* Cookie banner rises in (translate only, so it never delays first paint). */
+@media (prefers-reduced-motion: no-preference) {
+  .consent-banner > div {
+    animation: liftUp 0.45s var(--ease-decelerate, ease-out) both;
+  }
+}

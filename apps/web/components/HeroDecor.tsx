@@ -30,7 +30,7 @@ export function HeroDecor() {
       {MOTES.map((m, i) => (
         <motion.span
           key={i}
-          className="absolute rounded-full bg-[var(--color-moss-300)]/30"
+          className="absolute rounded-full bg-[color-mix(in_oklab,var(--color-moss-300)_30%,transparent)]"
           style={{ left: `${m.x}%`, top: `${m.y}%`, width: m.s, height: m.s }}
           animate={{ y: [0, -26, 0], opacity: [0.2, 0.6, 0.2], scale: [1, 1.3, 1] }}
           transition={{ duration: m.t, delay: m.d, repeat: Infinity, ease: "easeInOut" }}

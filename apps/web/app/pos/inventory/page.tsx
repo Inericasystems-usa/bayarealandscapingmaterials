@@ -504,7 +504,7 @@ export default function InventoryPage() {
           onClick={() => setLowOnly((v) => !v)}
           className={`flex h-9 items-center gap-2 rounded-[var(--radius-md)] border px-3 text-sm font-medium ${
             lowOnly
-              ? "border-[var(--color-warning)] bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]"
+              ? "border-[var(--color-warning)] bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]"
               : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)]"
           }`}
         >
@@ -580,7 +580,7 @@ export default function InventoryPage() {
 
       {/* ── Bulk edit bar ─────────────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-action)] bg-[var(--color-moss-100)]/60 px-5 py-2.5 text-sm">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-action)] bg-[color-mix(in_oklab,var(--color-moss-100)_60%,transparent)] px-5 py-2.5 text-sm">
           <span className="font-semibold text-[var(--color-text-primary)]">{selected.size} selected</span>
           <button onClick={clearSelection} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">Clear</button>
           <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
@@ -600,7 +600,7 @@ export default function InventoryPage() {
           <input value={bulkLocation} onChange={(e) => setBulkLocation(e.target.value)} placeholder="Location" className="h-8 w-28 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-2 text-sm text-[var(--color-text-primary)]" />
           <button disabled={!bulkLocation || bulkBusy} onClick={() => void applyBulk({ location: bulkLocation })} className={bulkBtn}>Set</button>
 
-          <button disabled={bulkBusy} onClick={() => void deleteSelected()} className="ml-auto flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--color-danger)] px-2.5 py-1 text-xs font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 disabled:opacity-50">
+          <button disabled={bulkBusy} onClick={() => void deleteSelected()} className="ml-auto flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--color-danger)] px-2.5 py-1 text-xs font-medium text-[var(--color-danger)] hover:bg-[color-mix(in_oklab,var(--color-danger)_10%,transparent)] disabled:opacity-50">
             <Trash2 className="h-3.5 w-3.5" /> Delete
           </button>
           {bulkBusy && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-action)]" />}
@@ -610,7 +610,7 @@ export default function InventoryPage() {
       {/* ── Body ────────────────────────────────────────────────────── */}
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-clay-500)]/15 px-3.5 py-2.5 text-sm text-[var(--color-warning)]">
+          <div className="mb-4 flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] px-3.5 py-2.5 text-sm text-[var(--color-warning)]">
             <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
             <span className="font-mono">{error}</span>
           </div>
@@ -668,7 +668,7 @@ export default function InventoryPage() {
                     <tr
                       key={r.id}
                       className={`border-b border-[var(--color-border)] last:border-b-0 ${
-                        selected.has(r.productId) ? "bg-[var(--color-moss-100)]/40" : r.low ? "bg-[var(--color-clay-500)]/[0.06]" : ""
+                        selected.has(r.productId) ? "bg-[color-mix(in_oklab,var(--color-moss-100)_40%,transparent)]" : r.low ? "bg-[var(--color-clay-500)]/[0.06]" : ""
                       }`}
                     >
                       <td className="px-4 py-3">
@@ -687,7 +687,7 @@ export default function InventoryPage() {
                           </span>
                           <span className="rounded bg-[var(--color-bg-surface)] px-1.5 py-0.5 text-[10px] text-[var(--color-text-muted)]">{r.unit}</span>
                           {r.low && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-clay-500)]/15 px-2 py-0.5 text-[11px] font-semibold text-[var(--color-warning)]">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-warning)]">
                               <AlertTriangle className="h-3 w-3" strokeWidth={2} aria-hidden />
                               Low
                             </span>
@@ -765,7 +765,7 @@ export default function InventoryPage() {
                             onClick={() => deleteProduct(r.productId)}
                             aria-label={`Delete ${r.name}`}
                             title={hasProduct ? "Delete product" : "No linked product"}
-                            className="grid h-7 w-7 place-items-center rounded-[var(--radius-md)] text-[var(--color-text-secondary)] hover:bg-[var(--color-danger)]/15 hover:text-[var(--color-danger)] disabled:opacity-30"
+                            className="grid h-7 w-7 place-items-center rounded-[var(--radius-md)] text-[var(--color-text-secondary)] hover:bg-[color-mix(in_oklab,var(--color-danger)_15%,transparent)] hover:text-[var(--color-danger)] disabled:opacity-30"
                           >
                             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
                           </button>
@@ -1003,7 +1003,7 @@ export default function InventoryPage() {
               </label>
 
               {formError && (
-                <p className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-clay-500)]/15 px-3 py-2 text-sm text-[var(--color-warning)]">
+                <p className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] px-3 py-2 text-sm text-[var(--color-warning)]">
                   <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
                   <span className="font-mono">{formError}</span>
                 </p>

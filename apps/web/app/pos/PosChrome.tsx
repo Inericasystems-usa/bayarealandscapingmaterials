@@ -116,7 +116,7 @@ export function PosChrome({ children }: { children: React.ReactNode }) {
             if (!items.length) return null;
             return (
               <div key={group} className="pt-1.5">
-                <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-moss-300)]/50 lg:block">
+                <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color-mix(in_oklab,var(--color-moss-300)_50%,transparent)] lg:block">
                   {group}
                 </p>
                 {items.map(({ key, label, href, icon: Icon, exact }) => {
@@ -144,7 +144,7 @@ export function PosChrome({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-1 hidden items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-moss-800)]/40 px-3 py-2 text-[11px] text-[var(--color-moss-300)] lg:flex">
+        <div className="mt-1 hidden items-center gap-2 rounded-[var(--radius-md)] bg-[color-mix(in_oklab,var(--color-moss-800)_40%,transparent)] px-3 py-2 text-[11px] text-[var(--color-moss-300)] lg:flex">
           <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-moss-600)] text-[10px] font-bold text-white">
             {initials}
           </span>
@@ -196,7 +196,7 @@ export function PosChrome({ children }: { children: React.ReactNode }) {
           {blocked ? (
             <div className="grid h-full place-items-center p-8">
               <div className="max-w-sm text-center">
-                <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[var(--radius-xl)] bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]">
+                <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[var(--radius-xl)] bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]">
                   <ShieldAlert className="h-7 w-7" strokeWidth={1.5} />
                 </span>
                 <h1 className="font-display text-xl font-bold text-[var(--color-text-primary)]">No access</h1>
@@ -222,7 +222,7 @@ export function PosChrome({ children }: { children: React.ReactNode }) {
       {drawerWarn && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4" onClick={() => setDrawerWarn(null)}>
           <div className="w-full max-w-sm rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 text-center shadow-[var(--shadow-xl)]" onClick={(e) => e.stopPropagation()}>
-            <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]">
+            <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]">
               <ShieldAlert className="h-6 w-6" strokeWidth={1.75} />
             </span>
             <h2 className="font-display text-lg font-bold text-[var(--color-text-primary)]">Close your drawer first</h2>

@@ -66,7 +66,7 @@ export function PosClock() {
         onClick={() => setOpen((v) => !v)}
         className={`flex h-9 items-center gap-2 rounded-[var(--radius-md)] border px-3 text-sm font-medium ${
           onBreak
-            ? "border-[var(--color-warning)] bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]"
+            ? "border-[var(--color-warning)] bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]"
             : shift
               ? "border-[var(--color-moss-500)] bg-[var(--color-moss-100)] text-[var(--color-moss-700)]"
               : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)]"

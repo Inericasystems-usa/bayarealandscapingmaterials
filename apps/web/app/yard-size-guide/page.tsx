@@ -105,7 +105,7 @@ function YardCard({ size }: { size: Size }) {
             {i > 0 && <div className="mr-2 h-8 w-px bg-white/10" />}
             <div className="text-center">
               <div className="text-sm font-bold text-[var(--color-moss-300)]">{s.v}</div>
-              <div className="text-xs text-[var(--color-moss-200)]/70">{s.l}</div>
+              <div className="text-xs text-[color-mix(in_oklab,var(--color-moss-200)_70%,transparent)]">{s.l}</div>
             </div>
           </div>
         ))}
@@ -117,7 +117,7 @@ function YardCard({ size }: { size: Size }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex flex-col justify-center bg-[var(--color-moss-950)]/96 px-5 py-4"
+            className="absolute inset-0 flex flex-col justify-center bg-[color-mix(in_oklab,var(--color-moss-950)_96%,transparent)] px-5 py-4"
           >
             <div className="mb-1 text-2xl font-black text-[var(--color-moss-300)]">{size.label}</div>
             <div className="mb-4 text-sm text-[var(--color-stone-300)]">Coverage at different depths:</div>
@@ -136,7 +136,7 @@ function YardCard({ size }: { size: Size }) {
             <div className="mb-3 text-xs text-[var(--color-stone-400)]">Common uses:</div>
             <div className="mb-4 flex flex-wrap gap-1">
               {size.useCases.map((u) => (
-                <span key={u} className="rounded-full bg-[var(--color-moss-500)]/20 px-2 py-0.5 text-xs text-[var(--color-moss-200)]">{u}</span>
+                <span key={u} className="rounded-full bg-[color-mix(in_oklab,var(--color-moss-500)_20%,transparent)] px-2 py-0.5 text-xs text-[var(--color-moss-200)]">{u}</span>
               ))}
             </div>
             <Link href="/request-quote">
@@ -195,7 +195,7 @@ function CoverageScaleBar() {
 function DepthGuide() {
   const items = [
     { title: "Mulch & Bark", depth: '2–3"', desc: "Optimal weed suppression and moisture retention", icon: Layers, color: "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]" },
-    { title: "Decorative Gravel", depth: '2–4"', desc: "Depending on aesthetic preference and traffic", icon: Square, color: "bg-[var(--color-clay-500)]/15 text-[var(--color-clay-500)]" },
+    { title: "Decorative Gravel", depth: '2–4"', desc: "Depending on aesthetic preference and traffic", icon: Square, color: "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-clay-500)]" },
     { title: "Base Rock", depth: '4–6"', desc: "Proper foundation for structures and driveways", icon: Ruler, color: "bg-[var(--color-stone-200)] text-[var(--color-stone-700)]" },
     { title: "Play Sand", depth: '6–8"', desc: "Safe cushioning depth for playgrounds", icon: Square, color: "bg-[var(--color-sky-100)] text-[var(--color-sky-600)]" },
   ];

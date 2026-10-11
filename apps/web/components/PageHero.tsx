@@ -34,7 +34,7 @@ export function PageHero({ eyebrow, title, subtitle, imageUrl, children }: PageH
             <div className="max-w-3xl">
               {eyebrow ? (
                 <p className="flex items-center gap-3 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-[var(--color-moss-300)]">
-                  <span className="h-px w-8 bg-[var(--color-moss-300)]/60" aria-hidden />
+                  <span className="h-px w-8 bg-[color-mix(in_oklab,var(--color-moss-300)_60%,transparent)]" aria-hidden />
                   {eyebrow}
                 </p>
               ) : null}
@@ -56,7 +56,7 @@ export function PageHero({ eyebrow, title, subtitle, imageUrl, children }: PageH
           <div className="max-w-3xl">
             {eyebrow ? (
               <p className="flex items-center gap-3 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-[var(--color-text-brand)]">
-                <span className="h-px w-8 bg-[var(--color-text-brand)]/50" aria-hidden />
+                <span className="h-px w-8 bg-[color-mix(in_oklab,var(--color-text-brand)_50%,transparent)]" aria-hidden />
                 {eyebrow}
               </p>
             ) : null}

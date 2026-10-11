@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Menu, Phone, X } from "lucide-react";
 import { Button, buttonVariants, cn, Container } from "@balm/ui";
 import { Logo } from "@/components/Logo";
@@ -21,6 +22,23 @@ const NAV = [
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const isCurrent = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  // Close on navigation and on Escape (focus goes back to the menu button).
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggle.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -50,10 +68,11 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="group relative px-3 py-2 text-[0.82rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+              aria-current={isCurrent(item.href) ? "page" : undefined}
+              className="group relative px-3 py-2 text-[0.82rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] aria-[current=page]:text-[var(--color-text-brand)]"
             >
               {item.label}
-              <span className="absolute inset-x-3 bottom-1 h-px origin-left scale-x-0 bg-[var(--color-text-brand)] transition-transform duration-300 group-hover:scale-x-100" aria-hidden />
+              <span className="absolute inset-x-3 bottom-1 h-px origin-left scale-x-0 bg-[var(--color-text-brand)] transition-transform duration-300 group-hover:scale-x-100 group-aria-[current=page]:scale-x-100" aria-hidden />
             </Link>
           ))}
         </nav>
@@ -77,6 +96,7 @@ export function SiteHeader() {
           </Link>
 
           <Button
+            ref={toggle}
             variant="ghost"
             size="icon"
             className="xl:hidden"
@@ -85,49 +105,57 @@ export function SiteHeader() {
             aria-controls="mobile-nav"
             onClick={() => setOpen((v) => !v)}
           >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </Button>
         </div>
       </Container>
 
-      {/* Mobile drawer */}
-      {open && (
-        <div
-          id="mobile-nav"
-          className="border-t border-[var(--color-border)] bg-[var(--color-bg-elevated)] xl:hidden"
-        >
+      {/* Mobile menu: always in the DOM so it can animate open and closed;
+          `inert` keeps the closed menu out of the tab order and screen readers. */}
+      <div
+        id="mobile-nav"
+        inert={!open}
+        className={cn(
+          "grid border-t border-[var(--color-border)] bg-[var(--color-bg-elevated)] transition-[grid-template-rows,opacity] duration-300 ease-[var(--ease-emphasized)] xl:hidden",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] border-transparent opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
           <Container className="py-4">
-            <nav className="flex flex-col" aria-label="Mobile">
+            <nav className="grid grid-cols-2 gap-1" aria-label="Mobile">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="rounded-[var(--radius-md)] px-3 py-3 text-base font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-primary)]"
+                  aria-current={isCurrent(item.href) ? "page" : undefined}
+                  className="rounded-[var(--radius-md)] px-3 py-3 text-base font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-primary)] aria-[current=page]:bg-[var(--color-moss-50)] aria-[current=page]:text-[var(--color-text-brand)]"
                 >
                   {item.label}
                 </Link>
               ))}
+            </nav>
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--color-border)] pt-4">
               <a
                 href={`tel:${COMPANY.phoneE164}`}
                 data-call-location="header"
                 onClick={() => setOpen(false)}
-                className="mt-2 flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-3 text-base text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)]"
+                className={buttonVariants({ size: "lg", variant: "secondary", className: "w-full" })}
               >
                 <Phone className="h-4 w-4" strokeWidth={1.5} aria-hidden />
-                {COMPANY.phone}
+                Call
               </a>
               <Link
                 href="/request-quote"
                 onClick={() => setOpen(false)}
-                className={buttonVariants({ size: "lg", className: "mt-3 w-full" })}
+                className={buttonVariants({ size: "lg", className: "w-full" })}
               >
                 Request Quote
               </Link>
-            </nav>
+            </div>
           </Container>
         </div>
-      )}
+      </div>
     </header>
   );
 }

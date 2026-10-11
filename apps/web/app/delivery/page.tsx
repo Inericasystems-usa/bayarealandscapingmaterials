@@ -212,7 +212,7 @@ export default function DeliveryPolicyPage() {
             <h3 className="mb-3 font-display text-2xl font-semibold">
               Need a Delivery Quote?
             </h3>
-            <p className="mb-6 text-[var(--color-text-inverted)]/80">
+            <p className="mb-6 text-[color-mix(in_oklab,var(--color-text-inverted)_80%,transparent)]">
               Contact us with your address and order details for a delivery estimate.
             </p>
             <Link href="/request-quote">

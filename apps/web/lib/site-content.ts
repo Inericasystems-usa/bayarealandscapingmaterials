@@ -15,10 +15,10 @@ export const STATS = [
 ] as const;
 
 export const SERVICES = [
-  { title: "Bulk Delivery", description: "Fast, reliable delivery of bulk materials throughout the Bay Area" },
-  { title: "Custom Soil Blends", description: "Specialized soil mixes tailored to your project needs" },
-  { title: "Material Calculator", description: "Precise quantity estimates for your landscaping projects" },
-  { title: "Expert Consultation", description: "Professional guidance from experienced landscaping specialists" },
-  { title: "Competitive Pricing", description: "Best prices on premium building materials in the Bay Area" },
-  { title: "Same-Day Quotes", description: "Quick turnaround on material quotes and project estimates" },
+  { title: "Bulk Delivery", description: "Fast, reliable delivery of bulk materials throughout the Bay Area", href: "/delivery" },
+  { title: "Custom Soil Blends", description: "Specialized soil mixes tailored to your project needs", href: "/products/category/soil" },
+  { title: "Material Calculator", description: "Precise quantity estimates for your landscaping projects", href: "/calculator" },
+  { title: "Expert Consultation", description: "Professional guidance from experienced landscaping specialists", href: "/contact" },
+  { title: "Competitive Pricing", description: "Retail prices published on every product, by the yard, pound or piece", href: "/products" },
+  { title: "Same-Day Quotes", description: "Quick turnaround on material quotes and project estimates", href: "/request-quote" },
 ] as const;

@@ -73,7 +73,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
           <SlideIn direction="left">
             <p className="flex items-center gap-3 font-mono text-[0.72rem] uppercase tracking-[0.2em] text-[var(--color-text-brand)]">
-              <span className="h-px w-8 bg-[var(--color-text-brand)]/50" aria-hidden /> Who we are
+              <span className="h-px w-8 bg-[color-mix(in_oklab,var(--color-text-brand)_50%,transparent)]" aria-hidden /> Who we are
             </p>
             <h2 className="mt-4 font-display text-[clamp(2rem,4vw,3.25rem)] font-light leading-[1.02] tracking-tight text-[var(--color-text-primary)]">
               Building the Bay Area, <span className="italic text-[var(--color-text-brand)]">one project at a time.</span>

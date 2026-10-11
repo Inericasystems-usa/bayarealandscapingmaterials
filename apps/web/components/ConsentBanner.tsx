@@ -92,7 +92,7 @@ export function ConsentBanner() {
             <h2 id="consent-title" className="font-display text-base font-semibold text-[var(--color-text-primary)]">
               Cookies on this site
             </h2>
-            <p id="consent-body" className="mt-1 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+            <p id="consent-body" className="mt-1 text-xs leading-relaxed sm:text-sm text-[var(--color-text-secondary)]">
               We use Google Analytics and Google Ads cookies to see how the site is used and which ads
               work, but only if you allow them. Nothing optional is on until you choose, and you can
               change your answer any time from &ldquo;Cookie settings&rdquo; at the bottom of the page.{" "}

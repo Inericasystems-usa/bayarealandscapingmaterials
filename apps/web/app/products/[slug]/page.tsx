@@ -146,7 +146,7 @@ export default async function ProductPage({ params }: PageProps) {
                 {category.name}
               </Link>
               {core ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-clay-500)]/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-clay-500)]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_oklab,var(--color-clay-500)_12%,transparent)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-clay-500)]">
                   <Sparkles className="h-3 w-3" aria-hidden />
                   Core material
                 </span>

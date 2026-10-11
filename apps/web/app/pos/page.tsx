@@ -696,7 +696,7 @@ export default function PosRegisterPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-clay-500)]/10 px-4 py-2 text-sm text-[var(--color-warning)]">
+          <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-clay-500)_10%,transparent)] px-4 py-2 text-sm text-[var(--color-warning)]">
             <AlertTriangle className="h-4 w-4" /> {error}
           </div>
         )}
@@ -725,7 +725,7 @@ export default function PosRegisterPage() {
                         out
                           ? "bg-[var(--color-danger)] text-white"
                           : p.low
-                            ? "bg-[var(--color-clay-500)]/85 text-white"
+                            ? "bg-[color-mix(in_oklab,var(--color-clay-500)_85%,transparent)] text-white"
                             : "bg-black/60 text-white"
                       }`}
                     >
@@ -799,7 +799,7 @@ export default function PosRegisterPage() {
             >
               <Monitor className="h-3.5 w-3.5" /> Display
             </a>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${termMode === "live" ? "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]" : "bg-[var(--color-clay-500)]/15 text-[var(--color-warning)]"}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${termMode === "live" ? "bg-[var(--color-moss-100)] text-[var(--color-moss-700)]" : "bg-[color-mix(in_oklab,var(--color-clay-500)_15%,transparent)] text-[var(--color-warning)]"}`}>
               {termMode === "live" ? "TERMINAL LIVE" : "TERMINAL SIM"}
             </span>
             {session ? (
@@ -820,7 +820,7 @@ export default function PosRegisterPage() {
             <p className="text-xs text-[var(--color-text-muted)]">
               {itemCount} {itemCount === 1 ? "item" : "items"} · {customer ? customer.name : "Walk-in"}
               {wholesalePricing && (
-                <span className="ml-1.5 rounded-full bg-[var(--color-action)]/15 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-[var(--color-action)]">
+                <span className="ml-1.5 rounded-full bg-[color-mix(in_oklab,var(--color-action)_15%,transparent)] px-1.5 py-0.5 font-semibold uppercase tracking-wide text-[var(--color-action)]">
                   Wholesale pricing
                 </span>
               )}
@@ -842,7 +842,7 @@ export default function PosRegisterPage() {
             <div
               className={`m-3 rounded-[var(--radius-md)] border p-3 ${
                 receipt.pending
-                  ? "border-[var(--color-clay-500)]/40 bg-[var(--color-clay-500)]/10 text-[var(--color-warning)]"
+                  ? "border-[color-mix(in_oklab,var(--color-clay-500)_40%,transparent)] bg-[color-mix(in_oklab,var(--color-clay-500)_10%,transparent)] text-[var(--color-warning)]"
                   : "border-[var(--color-moss-300)] bg-[var(--color-moss-100)] text-[var(--color-moss-800)]"
               }`}
             >

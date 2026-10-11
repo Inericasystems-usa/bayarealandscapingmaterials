@@ -127,6 +127,19 @@ export function searchText(product: CatalogProduct): string {
     .toLowerCase();
 }
 
+/** Categories photographed as packaged products on white: shown whole, not cropped. */
+const PACKAGED = new Set([
+  "tools-accessories",
+  "sealers",
+  "adhesives",
+  "cleaners",
+  "bagged-products",
+  "landscape-fabric",
+  "concrete-block",
+  "wall-caps",
+  "wall-blocks",
+]);
+
 export function toCard(
   product: CatalogProduct,
   priceLabel: string | null = null,
@@ -144,6 +157,7 @@ export function toCard(
     unit: product.unit,
     soldBy: soldByPhrase(product),
     image: images[0]!,
+    fill: images[0]!.kind || !PACKAGED.has(product.categorySlug) ? "cover" : "contain",
     hoverImage: hover && hover !== images[0] ? hover : null,
     core: product.tier === "core",
     rank: product.rank ?? null,

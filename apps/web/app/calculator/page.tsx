@@ -185,7 +185,7 @@ export default function CalculatorPage() {
                   <p className="font-medium">cubic yards of material</p>
 
                   {resultMaterial ? (
-                    <p className="mt-3 border-t border-[var(--color-action-fg)]/25 pt-3 text-sm">
+                    <p className="mt-3 border-t border-[color-mix(in_oklab,var(--color-action-fg)_25%,transparent)] pt-3 text-sm">
                       <span className="font-semibold">Contact us for pricing</span> on{" "}
                       {resultMaterial.name} — we&apos;ll quote the material and delivery
                       together.
