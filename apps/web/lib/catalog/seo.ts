@@ -11,7 +11,7 @@ import {
   type CatalogCategory,
   type CatalogProduct,
 } from "./index";
-import { variationPrices } from "./pricing";
+import { unitPriceLabel, variationPrices } from "./pricing";
 import { CATEGORY_SCENES, shareImage as sceneShareImage } from "@/lib/scene-meta";
 
 /**
@@ -192,11 +192,17 @@ export interface Faq {
   a: string;
 }
 
-export function productFaqs(product: CatalogProduct): Faq[] {
-  const quote = {
-    q: `How do I get a price for ${product.name}?`,
-    a: `Request a quote online with the unit and quantity you need, or call the yard at ${COMPANY.phone}. We will confirm the price, availability and any delivery charge.`,
-  };
+export function productFaqs(product: CatalogProduct, showPrices: boolean = SHOW_PRICES): Faq[] {
+  const prices = variationPrices(product, showPrices);
+  const quote = prices
+    ? {
+        q: `How much does ${product.name} cost?`,
+        a: `${prices.map((p) => `${unitPriceLabel(p.price, p.unit)}`).join(", ")} at our ${COMPANY.address.city} yard, before sales tax. Delivery is priced by distance and load: request a quote online or call ${COMPANY.phone} and we will confirm the total.`,
+      }
+    : {
+        q: `How do I get a price for ${product.name}?`,
+        a: `Request a quote online with the unit and quantity you need, or call the yard at ${COMPANY.phone}. We will confirm the price, availability and any delivery charge.`,
+      };
   if (product.isService) {
     return [
       {
@@ -257,7 +263,7 @@ export function productJsonLd(product: CatalogProduct, showPrices: boolean = SHO
       value: v.unit,
     })),
     // Offers only when the storefront shows prices: an offer without a price
-    // is reported as an error by Google, and prices are not published.
+    // is reported as an error by Google.
     ...(prices
       ? {
           offers: prices.map((p) => ({

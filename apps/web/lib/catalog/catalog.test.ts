@@ -129,7 +129,8 @@ describe("product page metadata", () => {
       expect(crumbs.itemListElement).toHaveLength(4);
       const faqs = productFaqs(p);
       expect(faqs.length).toBeGreaterThanOrEqual(2);
-      for (const f of faqs) expect(f.a).not.toMatch(/\$\s?\d/);
+      // Prices off: no figure anywhere in the answers.
+      for (const f of productFaqs(p, false)) expect(f.a).not.toMatch(/\$\s?\d/);
     }
   });
 });

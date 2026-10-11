@@ -22,8 +22,8 @@ const pricesOf = (sku: string) =>
   PRODUCTS.find((p) => p.sku === sku)!.variations.map((v) => RETAIL_PRICES[v.sku]).filter((n): n is number => typeof n === "number");
 
 describe("storefront switch", () => {
-  it("defaults to prices off", () => {
-    expect(SHOW_PRICES).toBe(false);
+  it("is on: the owner chose to publish retail prices (11 Oct 2026)", () => {
+    expect(SHOW_PRICES).toBe(true);
   });
 
   it("OFF: no price, offer or figure in any public data", () => {
@@ -94,5 +94,20 @@ describe.skipIf(!existsSync(join(built, "black-bark.html")) || SHOW_PRICES)("bui
     const chunks = walk(join(WEB, ".next", "static")).filter((f) => f.endsWith(".js"));
     const someVariationSku = PRODUCTS.find((p) => p.variations.length > 1)!.variations[1]!.sku;
     for (const f of chunks) expect(readFileSync(f, "utf8"), f).not.toContain(`"${someVariationSku}":`);
+  });
+});
+
+describe.skipIf(!existsSync(join(built, "black-bark.html")) || !SHOW_PRICES)("built output with prices on", () => {
+  it("every priced product page carries USD offers", () => {
+    for (const p of PRODUCTS) {
+      if (!variationPrices(p, true)) continue;
+      const html = readFileSync(join(built, `${p.slug}.html`), "utf8");
+      expect(html, p.slug).toContain('"priceCurrency":"USD"');
+    }
+  });
+
+  it("still ships no cost figure anywhere", () => {
+    const chunks = walk(join(WEB, ".next")).filter((f) => /\.(js|html|json)$/.test(f) && !f.includes("cache"));
+    for (const f of chunks) expect(readFileSync(f, "utf8"), f).not.toMatch(/Current Cost/i);
   });
 });
