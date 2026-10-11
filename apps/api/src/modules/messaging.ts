@@ -637,30 +637,40 @@ router.get("/status", async (req, res) => {
 // Threads — one row per conversation, newest first.
 router.get("/threads", async (req, res) => {
   if (!(await requireAuth(req, res))) return;
-  // Every message, grouped into threads in memory (the screen lists them all).
-  const all = await messages.all();
-  const byThread = new Map<string, Message[]>();
-  for (const m of all) {
-    const arr = byThread.get(m.threadKey) ?? [];
-    arr.push(m);
-    byThread.set(m.threadKey, arr);
-  }
+  // Grouped in the database, one row per conversation: the inbox no longer
+  // loads every message ever sent to build this list.
+  const groups = await messages.aggregate<{
+    _id: string;
+    count: number;
+    unread: number;
+    name: string | null;
+    lastBody: string;
+    lastAt: string;
+  }>([
+    { $sort: { createdAt: 1, id: 1 } },
+    {
+      $group: {
+        _id: "$threadKey",
+        count: { $sum: 1 },
+        unread: {
+          $sum: { $cond: [{ $and: [{ $eq: ["$direction", "in"] }, { $ne: ["$read", true] }] }, 1, 0] },
+        },
+        name: { $max: "$customerName" },
+        lastBody: { $last: "$body" },
+        lastAt: { $last: "$createdAt" },
+      },
+    },
+  ]);
   const opted = new Set(await optOuts.distinct("phone"));
-  const threads = [...byThread.entries()].map(([phone, msgs]) => {
-    msgs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const last = msgs[msgs.length - 1]!;
-    const name = msgs.find((m) => m.customerName)?.customerName ?? "";
-    const unread = msgs.filter((m) => m.direction === "in" && !m.read).length;
-    return {
-      phone,
-      customerName: name,
-      lastBody: last.body,
-      lastAt: last.createdAt,
-      count: msgs.length,
-      unread,
-      optedOut: opted.has(phone),
-    };
-  });
+  const threads = groups.map((g) => ({
+    phone: g._id,
+    customerName: g.name ?? "",
+    lastBody: g.lastBody,
+    lastAt: g.lastAt,
+    count: g.count,
+    unread: g.unread,
+    optedOut: opted.has(g._id),
+  }));
   threads.sort((a, b) => b.lastAt.localeCompare(a.lastAt));
   return res.json({ data: threads });
 });

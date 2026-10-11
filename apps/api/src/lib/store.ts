@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Model, SortOrder } from "mongoose";
+import type { Model, PipelineStage, SortOrder } from "mongoose";
 import { getModel, toEntity } from "../models/base.js";
 import { currentSession } from "./db.js";
 
@@ -169,6 +169,15 @@ export class Collection<T extends Entity> {
     if (opts.limit !== undefined) q = q.limit(opts.limit);
     const docs = await q.lean();
     return docs.map((d) => toEntity<T>(d));
+  }
+
+  /**
+   * Run an aggregation in the database (grouping, counting) and return its raw
+   * result rows. Only for collections stored in plain text: encrypted fields
+   * cannot be grouped or matched here.
+   */
+  async aggregate<R>(pipeline: PipelineStage[]): Promise<R[]> {
+    return (await this.model.aggregate(pipeline).session(sess())) as R[];
   }
 
   /** The distinct values of `field` across the rows matching `where`. */

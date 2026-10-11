@@ -200,7 +200,7 @@ defineModel(
     customerName: String, body: String, status: String, providerId: String, trigger: String,
     simulated: Boolean, read: Boolean, error: String,
   },
-  [{ threadKey: 1 }, { providerId: 1 }, { status: 1 }, { direction: 1, status: 1 }],
+  [{ threadKey: 1, createdAt: 1 }, { providerId: 1 }, { status: 1 }, { direction: 1, status: 1 }],
 );
 
 defineModel("message_templates", { key: String, label: String, body: String, enabled: Boolean, delayMinutes: Number }, [{ key: 1 }]);

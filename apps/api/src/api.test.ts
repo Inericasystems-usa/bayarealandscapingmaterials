@@ -1615,3 +1615,23 @@ describe("offline conversion feed (scheduled Google Ads upload)", () => {
     delete process.env.OFFLINE_CONVERSIONS_FEED_PASSWORD;
   });
 });
+
+describe("messaging inbox", () => {
+  it("groups threads in the database: newest first, counts, unread, last message", async () => {
+    const { messages } = await import("./modules/messaging.js");
+    const base = { to: "", from: "", customerId: null, status: "Delivered", providerId: null, trigger: null, simulated: true, error: null };
+    // Inserted oldest first; createdAt comes from insert time.
+    await messages.insert({ ...base, direction: "out", threadKey: "+15105550101", customerName: "Ana Ruiz", body: "Your load ships today", read: true });
+    await messages.insert({ ...base, direction: "in", threadKey: "+15105550101", customerName: "", body: "Thanks!", read: false });
+    await messages.insert({ ...base, direction: "in", threadKey: "+15105550102", customerName: "Bo Chen", body: "Price for 3 yards?", read: false });
+    const token = await login(ADMIN, ADMIN_PW);
+    const res = await inject({ url: "/api/v1/messaging/threads", headers: { authorization: `Bearer ${token}` } });
+    expect(res.statusCode).toBe(200);
+    const threads = res.json().data as { phone: string; customerName: string; count: number; unread: number; lastBody: string }[];
+    const a = threads.find((t) => t.phone === "+15105550101")!;
+    const b = threads.find((t) => t.phone === "+15105550102")!;
+    expect(a).toMatchObject({ customerName: "Ana Ruiz", count: 2, unread: 1, lastBody: "Thanks!" });
+    expect(b).toMatchObject({ customerName: "Bo Chen", count: 1, unread: 1 });
+    expect(threads.indexOf(b)).toBeLessThan(threads.indexOf(a));
+  });
+});
