@@ -12,3 +12,9 @@ balm-handover.tar.gz
 # manager's lockfile is never the one that was tested.
 package-lock.json
 yarn.lock
+
+# Build and test output: generated on every run, never source.
+*.tsbuildinfo
+coverage/
+test-results/
+playwright-report/
