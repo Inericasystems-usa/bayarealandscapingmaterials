@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@balm/ui";
 import { PageShell } from "@/components/PageShell";
@@ -126,6 +125,8 @@ export default function GalleryPage() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
+                type="button"
+                aria-pressed={active === cat}
                 onClick={() => setActive(cat)}
                 className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                   active === cat
@@ -158,22 +159,14 @@ export default function GalleryPage() {
             </p>
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
-            >
+          {/* Movement-only entrance (CSS): cards are never translucent, so text
+              always meets contrast, even mid-animation. Keyed by filter so it replays. */}
+          <div key={active} className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filtered.map((project, idx) => (
-                <motion.div
+                <div
                   key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: idx * 0.05 }}
-                  className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-md)] transition-shadow hover:shadow-[var(--shadow-xl)]"
+                  style={{ animationDelay: `${Math.min(idx, 8) * 40}ms` }}
+                  className="settle-in overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] shadow-[var(--shadow-md)] transition-shadow hover:shadow-[var(--shadow-xl)]"
                 >
                   <BeforeAfterSlider before={project.before} after={project.after} title={project.title} />
                   <div className="p-4">
@@ -187,10 +180,9 @@ export default function GalleryPage() {
                       <span className="text-xs text-[var(--color-text-secondary)]">{project.material}</span>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
-          </AnimatePresence>
+          </div>
 
           <FadeIn className="mt-14 text-center">
             <div className="inline-block max-w-xl rounded-[var(--radius-xl)] px-6 sm:px-10 bg-gradient-to-br from-[var(--color-moss-900)] to-[var(--color-moss-950)] py-8">

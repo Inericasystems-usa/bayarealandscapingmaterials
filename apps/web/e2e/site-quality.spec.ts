@@ -87,6 +87,10 @@ for (const path of PAGES) {
     ] as const) {
       test(`no serious accessibility violations (${name})`, async ({ page }) => {
         await page.setViewportSize(size);
+        // Scan the settled page, not a frame mid-animation (CI machines are
+        // slow enough to catch entrance effects half-way). Motion itself is
+        // still exercised by the overflow tests above.
+        await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(path, { waitUntil: "load" });
         await page.waitForTimeout(400);
         const { violations } = await new AxeBuilder({ page })

@@ -136,6 +136,22 @@ body {
   }
 }
 
+/* Gallery cards: a short rise when a filter changes. Movement only (no
+   opacity), so axe and visitors never see half-transparent text. */
+@media (prefers-reduced-motion: no-preference) {
+  .settle-in {
+    animation: settle-in 0.4s var(--ease-emphasized, ease-out) both;
+  }
+}
+@keyframes settle-in {
+  from {
+    translate: 0 12px;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
 /* In-page links (#calculator) land below the sticky header. */
 html {
   scroll-padding-top: 6rem;
